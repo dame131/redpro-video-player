@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navy Family Video Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #001f3f;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        /* Photo slideshow background */
+        .slideshow-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .slideshow-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+        }
+        
+        .slideshow-container img.active {
+            opacity: 1;
+        }
+        
+        /* Day/Night mode overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 31, 63, 0.3);
+            z-index: 2;
+            transition: background 0.5s ease;
+        }
+        
+        body.night-mode .overlay {
+            background: rgba(0, 0, 0, 0.6);
+        }
+        
+        body.night-mode .slideshow-container img {
+            filter: brightness(0.6);
+        }
+        
+        /* Main container */
+        .container {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* Navy-themed header */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #ffd700;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            color: #87ceeb;
+        }
+        
+        /* Video player */
+        .video-player {
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #ffd700;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        video {
+            width: 100%;
+            border-radius: 5px;
+            background: #000;
+        }
+        
+        /* Controls */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        button {
+            background: #001f3f;
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #ffd700;
+            color: #001f3f;
+            transform: scale(1.05);
+        }
+        
+        /* Mode toggle */
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        /* Info display */
+        .info {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #87ceeb;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8em; }
+            .subtitle { font-size: 1em; }
+            button { padding: 8px 15px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="slideshow-container" id="slideshow">
+        <img src="images/family/20140419_164930-edited(1).jpg" class="active" alt="Family Photo">
+        <img src="images/family/20190614_160316.jpg" alt="Family Photo">
+        <img src="images/family/20190614_163013.jpg" alt="Family Photo">
+        <img src="images/family/20230528_225850.jpg" alt="Family Photo">
+        <img src="images/family/20230528_225922.jpg" alt="Family Photo">
+    </div>
+    
+    <div class="overlay"></div>
+    
+    <div class="mode-toggle">
+        <button onclick="toggleMode()">☀️/🌙 Toggle Mode</button>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>⚓ Navy Family Video Player ⚓</h1>
+            <div class="subtitle">Honoring Service, Cherishing Family</div>
+        </header>
+        
+        <div class="video-player">
+            <video id="videoPlayer" controls>
+                <source src="" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            
+            <div class="controls">
+                <button onclick="loadVideo()">📁 Load Video</button>
+                <button onclick="videoPlayer.play()">▶️ Play</button>
+                <button onclick="videoPlayer.pause()">⏸️ Pause</button>
+                <button onclick="videoPlayer.currentTime -= 10">⏪ -10s</button>
+                <button onclick="videoPlayer.currentTime += 10">⏩ +10s</button>
+            </div>
+            
+            <div class="info" id="info">
+                Photo rotation: Every 8-10 seconds | Day/Night mode available
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Photo slideshow with 8-10 second rotation
+        const images = document.querySelectorAll('.slideshow-container img');
+        let currentIndex = 0;
+        
+        function rotatePhotos() {
+            images[currentIndex].classList.remove('active');
+            currentIndex = (currentIndex + 1) % images.length;
+            images[currentIndex].classList.add('active');
+        }
+        
+        // Random interval between 8-10 seconds
+        function startSlideshow() {
+            setInterval(() => {
+                const randomDelay = Math.random() * 2000 + 8000; // 8-10 seconds
+                setTimeout(rotatePhotos, 0);
+            }, 9000); // Average 9 seconds
+        }
+        
+        // Day/Night mode toggle
+        function toggleMode() {
+            document.body.classList.toggle('night-mode');
+            const mode = document.body.classList.contains('night-mode') ? 'Night' : 'Day';
+            console.log(`Switched to ${mode} Mode`);
+        }
+        
+        // Video player functions
+        const videoPlayer = document.getElementById('videoPlayer');
+        
+        function loadVideo() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const url = URL.createObjectURL(file);
+                videoPlayer.src = url;
+                document.getElementById('info').textContent = `Loaded: ${file.name}`;
+            };
+            input.click();
+        }
+        
+        // Auto-detect system time for day/night mode
+        function autoSetMode() {
+            const hour = new Date().getHours();
+            if (hour >= 19 || hour < 6) {
+                document.body.classList.add('night-mode');
+            }
+        }
+        
+        // Initialize
+        window.onload = () => {
+            startSlideshow();
+            autoSetMode();
+        };
+    </script>
+</body>
+</html>
