@@ -1,262 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navy Family Video Player</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Arial', sans-serif;
-            background: #001f3f;
-            color: #fff;
-            overflow: hidden;
-        }
-        
-        /* Photo slideshow background */
-        .slideshow-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-        
-        .slideshow-container img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-object-fit: contain            opacity: 0;
-            transition: opacity 2s ease-in-out;
-        }
-        
-        .slideshow-container img.active {
-            opacity: 1;
-        }
-        
-        /* Day/Night mode overlay */
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 31, 63, 0.3);
-            z-index: 2;
-            transition: background 0.5s ease;
-        }
-        
-        body.night-mode .overlay {
-            background: rgba(0, 0, 0, 0.6);
-        }
-        
-        body.night-mode .slideshow-container img {
-            filter: brightness(0.6);
-        }
-        
-        /* Main container */
-        .container {
-            position: relative;
-            z-index: 3;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        /* Navy-themed header */
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
-        
-        h1 {
-            font-size: 2.5em;
-            color: #ffd700;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        
-        .subtitle {
-            font-size: 1.2em;
-            color: #87ceeb;
-        }
-        
-        /* Video player */
-        .video-player {
-            background: rgba(0, 0, 0, 0.8);
-            border: 3px solid #ffd700;
-            border-radius: 10px;
-            padding: 20px;
-            max-width: 800px;
-            width: 100%;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-        
-        video {
-            width: 100%;
-            border-radius: 5px;
-            background: #000;
-        }
-        
-        /* Controls */
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-        
-        button {
-            background: #001f3f;
-            color: #ffd700;
-            border: 2px solid #ffd700;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        
-        button:hover {
-            background: #ffd700;
-            color: #001f3f;
-            transform: scale(1.05);
-        }
-        
-        /* Mode toggle */
-        .mode-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-        
-        /* Info display */
-        .info {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #87ceeb;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-        }
-        
-        @media (max-width: 600px) {
-            h1 { font-size: 1.8em; }
-            .subtitle { font-size: 1em; }
-            button { padding: 8px 15px; font-size: 14px; }
-        }
-    </style>
-</head>
-<body>
-    <div class="slideshow-container" id="slideshow">
-        <img src="images/family/20140419_164930-edited(1).jpg" class="active" alt="Family Photo">
-        <img src="images/family/20190614_160316.jpg" alt="Family Photo">
-        <img src="images/family/20190614_163013.jpg" alt="Family Photo">
-        <img src="images/family/20230528_225850.jpg" alt="Family Photo">
-        <img src="images/family/20230528_225922.jpg" alt="Family Photo">
-    </div>
-    
-    <div class="overlay"></div>
-    
-    <div class="mode-toggle">
-        <button onclick="toggleMode()">☀️/🌙 Toggle Mode</button>
-    </div>
-    
-    <div class="container">
-        <header>
-            <h1>⚓ Navy Family Video Player ⚓</h1>
-            <div class="subtitle">Honoring Service, Cherishing Family</div>
-        </header>
-        
-        <div class="video-player">
-            <video id="videoPlayer" controls>
-                <source src="" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-            
-            <div class="controls">
-                <button onclick="loadVideo()">📁 Load Video</button>
-                <button onclick="videoPlayer.play()">▶️ Play</button>
-                <button onclick="videoPlayer.pause()">⏸️ Pause</button>
-                <button onclick="videoPlayer.currentTime -= 10">⏪ -10s</button>
-                <button onclick="videoPlayer.currentTime += 10">⏩ +10s</button>
-            </div>
-            
-            <div class="info" id="info">
-                Photo rotation: Every 8-10 seconds | Day/Night mode available
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // Photo slideshow with 8-10 second rotation
-        const images = document.querySelectorAll('.slideshow-container img');
-        let currentIndex = 0;
-        
-        function rotatePhotos() {
-            images[currentIndex].classList.remove('active');
-            currentIndex = (currentIndex + 1) % images.length;
-            images[currentIndex].classList.add('active');
-        }
-        
-        // Random interval between 8-10 seconds
-        function startSlideshow() {
-            setInterval(() => {
-                const randomDelay = Math.random() * 2000 + 8000; // 8-10 seconds
-                setTimeout(rotatePhotos, 0);
-            }, 9000); // Average 9 seconds
-        }
-        
-        // Day/Night mode toggle
-        function toggleMode() {
-            document.body.classList.toggle('night-mode');
-            const mode = document.body.classList.contains('night-mode') ? 'Night' : 'Day';
-            console.log(`Switched to ${mode} Mode`);
-        }
-        
-        // Video player functions
-        const videoPlayer = document.getElementById('videoPlayer');
-        
-        function loadVideo() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'video/*';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                const url = URL.createObjectURL(file);
-                videoPlayer.src = url;
-                document.getElementById('info').textContent = `Loaded: ${file.name}`;
-            };
-            input.click();
-        }
-        
-        // Auto-detect system time for day/night mode
-        function autoSetMode() {
-            const hour = new Date().getHours();
-            if (hour >= 19 || hour < 6) {
-                document.body.classList.add('night-mode');
-            }
-        }
-        
-        // Initialize
-        window.onload = () => {
-            startSlideshow();
-            autoSetMode();
-        };
-    </script>
-</body>
-</html>
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#a90000"><title>131 Red Player</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--r:#e1121d;--d:#8b0008;--b:#070708;--p:#151517;--l:#3b3b40;--m:#b9b9bf}*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#000;color:#fff;font-family:Arial,sans-serif}body{background:radial-gradient(circle at 50% -20%,#650007,#150003 35%,#050506 75%);min-height:100dvh}
+button,select,input{font:inherit}button,select{color:#fff;background:#242429;border:1px solid #4a4a50;border-radius:12px;min-height:44px;padding:8px 12px;font-weight:800}button:active{transform:scale(.96)}
+.primary{background:linear-gradient(#f32431,#a30009);border-color:#ff6970;box-shadow:0 0 17px #e1121d66}.active{background:var(--r)!important}.app{width:min(100%,1000px);margin:auto;padding:10px 10px calc(15px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:5px 2px 12px}.brand{display:flex;align-items:center;gap:10px}.logo{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,#ff2430,#8d0007);box-shadow:0 0 20px #e1121d88;font-weight:1000}.brand h1{font-size:20px;margin:0}.brand small{color:#ff8b91}
+.shell{overflow:hidden;border:1px solid #641b21;border-radius:18px;background:#000;box-shadow:0 15px 45px #000a}.stage{aspect-ratio:16/9;position:relative;display:grid;place-items:center;background:#000;overflow:hidden}.stage video{width:100%;height:100%;object-fit:contain}.empty{position:absolute;text-align:center;color:var(--m)}.empty strong{display:block;color:#fff;font-size:20px}.mark{font-size:55px;color:var(--r);filter:drop-shadow(0 0 14px #d00)}
+.badges{position:absolute;top:9px;left:9px;right:9px;display:flex;justify-content:space-between;pointer-events:none}.badge{background:#000c;border:1px solid #ffffff25;border-radius:9px;padding:5px 8px;font-size:11px;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.unlock{position:absolute;inset:0;display:none;place-items:center}.locked .unlock{display:grid}.locked .controls{visibility:hidden}
+.controls{padding:10px;background:linear-gradient(#19191c,#0d0d0f)}.seek{display:grid;grid-template-columns:42px 1fr 42px;gap:7px;align-items:center;color:var(--m);font-size:12px}input[type=range]{accent-color:var(--r);width:100%}
+.main{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:8px}.main button{min-width:42px;padding:7px}.play{width:56px;height:56px;border-radius:50%;font-size:20px}.vol{display:flex;align-items:center;gap:5px;flex:1;max-width:170px}.tools{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}.tools button,.tools select{min-width:0;font-size:12px;padding:6px 4px}
+.library{margin-top:12px;background:#111114;border:1px solid #35353a;border-radius:16px;overflow:hidden}.libhead{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-bottom:1px solid #2d2d32}.libhead h2{font-size:16px;margin:0}.pick{display:flex;gap:6px}.pick button{min-height:36px;font-size:12px}
+.list{max-height:260px;overflow:auto}.item{display:grid;grid-template-columns:42px 1fr auto;gap:9px;align-items:center;padding:9px 11px;border-bottom:1px solid #27272b}.thumb{width:42px;height:42px;border-radius:10px;background:linear-gradient(145deg,#490006,#111);display:grid;place-items:center;color:#ff555d}.item b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.item small,.emptylist{color:var(--m)}.item button{min-height:34px;padding:5px 9px}.emptylist{text-align:center;padding:25px}.notice{text-align:center;color:#ff9ba0;min-height:30px;padding:8px}.hidden{display:none}
+@media(max-width:620px){.brand h1{font-size:18px}.tools{grid-template-columns:repeat(3,1fr)}.main{gap:2px}.main button{font-size:12px;min-width:38px}.vol{max-width:105px}.libhead{align-items:flex-start;flex-direction:column;gap:8px}.pick{width:100%}.pick button{flex:1}}
+</style></head><body><main class="app">
+<header><div class="brand"><div class="logo">131</div><div><h1>131 RED PLAYER</h1><small>Private • Offline • No ads</small></div></div><button id="install" class="hidden">Install</button></header>
+<section class="shell" id="shell"><div class="stage" id="stage"><video id="video" playsinline preload="metadata"></video>
+<div class="empty" id="empty"><div class="mark">▶</div><strong>Choose a video</strong>Files stay on your device.</div>
+<div class="badges"><span class="badge" id="name">131 RED PLAYER</span><span class="badge" id="abstate">A–B OFF</span></div>
+<div class="unlock" id="unlock"><button class="primary">🔒 Hold to unlock</button></div></div>
+<div class="controls"><div class="seek"><span id="now">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="length">0:00</span></div>
+<div class="main"><button id="back">−10</button><button id="play" class="play primary">▶</button><button id="next">+10</button><div class="vol">🔊<input id="volume" type="range" min="0" max="1" step=".05" value="1"></div><button id="rotate">↻</button><button id="full">⛶</button></div>
+<div class="tools"><select id="speed"><option>.5×</option><option>.75×</option><option selected>1×</option><option>1.25×</option><option>1.5×</option><option>2×</option></select><button id="ab">A–B</button><button id="pip">Mini player</button><button id="subs">Subtitles</button><button id="lock">Lock</button></div></div></section>
+<div class="notice" id="notice"></div><section class="library"><div class="libhead"><h2>My videos</h2><div class="pick"><button id="add" class="primary">＋ Add videos</button><button id="folder">📁 Add folder</button></div></div><div class="list" id="list"><div class="emptylist">Your playlist will appear here.</div></div></section>
+<input id="files" type="file" accept="video/*,.mkv,.avi" multiple hidden><input id="folders" type="file" accept="video/*,.mkv,.avi" webkitdirectory multiple hidden><input id="subfile" type="file" accept=".vtt,text/vtt" hidden>
+</main><script>
+(()=>{const $=x=>document.getElementById(x),v=$('video'),shell=$('shell'),seek=$('seek');let items=[],at=-1,url='',a=null,b=null,installEvent,timer;
+const time=n=>{if(!Number.isFinite(n))return'0:00';n=Math.max(0,Math.floor(n));return Math.floor(n/60)+':'+String(n%60).padStart(2,'0')};
+function say(s){$('notice').textContent=s;clearTimeout(say.t);say.t=setTimeout(()=>$('notice').textContent='',2800)}
+function save(){if(at>=0&&Number.isFinite(v.currentTime))localStorage.setItem('red:'+items[at].key,v.currentTime)}
+function render(){let out=$('list');if(!items.length){out.innerHTML='<div class="emptylist">Your playlist will appear here.</div>';return}out.innerHTML='';items.forEach((x,i)=>{let row=document.createElement('div');row.className='item';row.innerHTML='<div class="thumb">▶</div><div><b></b><small></small></div><button>'+(i===at?'Playing':'Play')+'</button>';row.querySelector('b').textContent=x.file.name;row.querySelector('small').textContent=x.size;row.querySelector('button').onclick=()=>load(i,true);out.appendChild(row)})}
+function add(files){let known=new Set(items.map(x=>x.key)),valid=[...files].filter(f=>f.type.startsWith('video/')||/\.(mp4|mov|mkv|avi|webm|m4v)$/i.test(f.name));valid.forEach(file=>{let key=file.name+':'+file.size+':'+file.lastModified;if(!known.has(key))items.push({file,key,size:(file.size/1048576).toFixed(1)+' MB'})});render();if(at<0&&items.length)load(0,false);say(valid.length+' video'+(valid.length===1?'':'s')+' added')}
+function load(i,auto){save();if(url)URL.revokeObjectURL(url);at=i;url=URL.createObjectURL(items[i].file);v.src=url;$('empty').classList.add('hidden');$('name').textContent=items[i].file.name;v.onloadedmetadata=()=>{let old=Number(localStorage.getItem('red:'+items[i].key)||0);if(old>0&&old<v.duration-5){v.currentTime=old;say('Resumed at '+time(old))}if(auto)v.play().catch(()=>{})};render()}
+function toggle(){if(!v.src)return say('Add a video first');v.paused?v.play():v.pause()}
+v.onplay=()=>$('play').textContent='❚❚';v.onpause=()=>{$('play').textContent='▶';save()};v.ontimeupdate=()=>{seek.value=v.duration?Math.round(v.currentTime/v.duration*1000):0;$('now').textContent=time(v.currentTime);if(b!==null&&v.currentTime>=b)v.currentTime=a};v.ondurationchange=()=>$('length').textContent=time(v.duration);v.onended=()=>{save();if(at+1<items.length)load(at+1,true)};v.onerror=()=>say('This video format is not supported here.');window.onbeforeunload=save;
+$('play').onclick=toggle;$('stage').onclick=e=>{if(e.target===v)toggle()};$('back').onclick=()=>v.currentTime=Math.max(0,v.currentTime-10);$('next').onclick=()=>v.currentTime=Math.min(v.duration||0,v.currentTime+10);seek.oninput=()=>{if(v.duration)v.currentTime=seek.value/1000*v.duration};$('volume').oninput=e=>v.volume=e.target.value;$('speed').onchange=e=>{v.playbackRate=parseFloat(e.target.value);say('Speed '+e.target.value)};
+$('full').onclick=()=>document.fullscreenElement?document.exitFullscreen():shell.requestFullscreen?.().catch(()=>say('Fullscreen is unavailable'));$('rotate').onclick=async()=>{try{await screen.orientation.lock(screen.orientation.type.startsWith('landscape')?'portrait':'landscape');say('Screen rotated')}catch{say('Use your phone rotation button')}};$('pip').onclick=async()=>{try{document.pictureInPictureElement?await document.exitPictureInPicture():await v.requestPictureInPicture()}catch{say('Mini player is unavailable')}};
+$('ab').onclick=()=>{if(!v.src)return say('Add a video first');if(a===null){a=v.currentTime;$('ab').classList.add('active');$('abstate').textContent='SET B';say('Point A saved')}else if(b===null){b=Math.max(v.currentTime,a+.2);$('abstate').textContent=time(a)+'–'+time(b);say('A–B repeat is on')}else{a=b=null;$('ab').classList.remove('active');$('abstate').textContent='A–B OFF';say('A–B repeat is off')}};
+$('subs').onclick=()=>$('subfile').click();$('subfile').onchange=e=>{let f=e.target.files[0];if(!f)return;v.querySelectorAll('track').forEach(x=>x.remove());let t=document.createElement('track');t.kind='subtitles';t.label=f.name;t.srclang='en';t.src=URL.createObjectURL(f);t.default=true;v.appendChild(t);say('Subtitles loaded')};
+$('lock').onclick=()=>{shell.classList.add('locked');say('Controls locked')};$('unlock').onpointerdown=()=>timer=setTimeout(()=>{shell.classList.remove('locked');say('Controls unlocked')},900);$('unlock').onpointerup=$('unlock').onpointercancel=()=>clearTimeout(timer);
+$('add').onclick=()=>$('files').click();$('files').onchange=e=>add(e.target.files);$('folder').onclick=()=>$('folders').click();$('folders').onchange=e=>add(e.target.files);
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvent=e;$('install').classList.remove('hidden')});$('install').onclick=async()=>{if(installEvent){installEvent.prompt();await installEvent.userChoice;installEvent=null;$('install').classList.add('hidden')}};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
+</script></body></html>
