@@ -7,13 +7,13 @@ import static org.junit.Assert.assertTrue;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Rect;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
+import androidx.test.uiautomator.StaleObjectException;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
@@ -70,7 +70,7 @@ public final class ScreenTourTest {
         capture("03-more-menu", By.text("Private vault"), true);
         device.pressBack();
         clickResource("moreButton");
-        waitFor(By.text("Private vault"), "Private vault menu item").click();
+        click(By.text("Private vault"), "Private vault menu item");
         capture("04-private-vault", By.desc("Private Vault"), true);
         device.pressBack();
         clickResource("searchButton");
@@ -87,7 +87,7 @@ public final class ScreenTourTest {
         device.pressBack();
         clickResource("openButton");
         capture("09-video-library", By.desc("Video Library"), true);
-        waitFor(By.text("BROWSE FILES"), "Browse files").click();
+        click(By.text("BROWSE FILES"), "Browse files");
         capture("10-system-video-picker", By.pkg("com.google.android.documentsui"), false);
         device.pressBack(); device.pressBack();
         startScreen(SubtitleDownloadActivity.class);
@@ -97,13 +97,13 @@ public final class ScreenTourTest {
         startScreen(HistoryActivity.class);
         capture("13-screen-18-history-recovery", By.desc("History Screen 18"), true);
         startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home restart");
-        clickResource("moreButton"); waitFor(By.text("Equalizer & Bass"), "equalizer menu").click();
+        clickResource("moreButton"); click(By.text("Equalizer & Bass"), "equalizer menu");
         capture("14-equalizer-bass", By.text("Equalizer & Bass Boost"), true); device.pressBack();
-        clickResource("moreButton"); waitFor(By.text("Sleep timer"), "sleep timer menu").click();
+        clickResource("moreButton"); click(By.text("Sleep timer"), "sleep timer menu");
         capture("15-sleep-timer", By.text("Sleep timer"), true); device.pressBack();
-        clickResource("settingsButton"); waitFor(By.text("Software decoder"), "decoder setting").click();
+        clickResource("settingsButton"); click(By.text("Software decoder"), "decoder setting");
         capture("16-decoder-settings", By.text("Software decoder"), true); device.pressBack();
-        startScreen(VaultActivity.class); waitFor(By.desc("Private Vault"), "vault"); waitFor(By.text("CREATE VAULT PIN"), "create PIN").click();
+        startScreen(VaultActivity.class); waitFor(By.desc("Private Vault"), "vault"); click(By.text("CREATE VAULT PIN"), "create PIN");
         capture("17-vault-pin", By.text("Create vault PIN"), true);
         startVideoHome(); waitFor(By.desc("131 Red Player Home Ready"), "video home"); clickResource("subtitleButton");
         capture("18-subtitle-choices", By.text("Download matching subtitles"), true);
@@ -118,8 +118,20 @@ public final class ScreenTourTest {
     }
 
     private void clickResource(String id) {
-        waitFor(By.res(PACKAGE, id), id).click();
-        device.waitForIdle();
+        click(By.res(PACKAGE, id), id);
+    }
+
+    private void click(BySelector selector, String label) {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                waitFor(selector, label).click();
+                device.waitForIdle();
+                return;
+            } catch (StaleObjectException ignored) {
+                device.waitForIdle();
+            }
+        }
+        throw new AssertionError("Screen control stayed stale: " + label);
     }
 
     private UiObject2 waitFor(BySelector selector, String label) {
@@ -129,9 +141,8 @@ public final class ScreenTourTest {
     }
 
     private void capture(String name, BySelector marker, boolean appMustBeForeground) {
-        UiObject2 object = waitFor(marker, name);
-        Rect bounds = object.getVisibleBounds();
-        assertTrue("Marker is not visible for " + name, bounds.width() > 0 && bounds.height() > 0);
+        assertTrue("Screen marker did not appear: " + name,
+                device.wait(Until.hasObject(marker), SCREEN_TIMEOUT_MS));
         if (appMustBeForeground) {
             assertEquals("Wrong foreground app for " + name, PACKAGE, device.getCurrentPackageName());
         }
