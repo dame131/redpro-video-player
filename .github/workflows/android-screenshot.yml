@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - ".github/workflows/android-screenshot.yml"
+      - "app/**"
   workflow_dispatch:
 
 permissions:
@@ -37,10 +38,13 @@ jobs:
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.mr131.redplayer
             adb shell am start -n com.mr131.redplayer/.MainActivity
-            sleep 5
+            sleep 8
             adb exec-out screencap -p > 131-red-player-real-home.png
+            adb logcat -d > 131-red-player-logcat.txt
       - uses: actions/upload-artifact@v4
         with:
           name: 131-Red-Player-Real-Screenshot
-          path: 131-red-player-real-home.png
+          path: |
+            131-red-player-real-home.png
+            131-red-player-logcat.txt
           if-no-files-found: error
