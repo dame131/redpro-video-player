@@ -64,11 +64,20 @@ public class MainActivity extends AppCompatActivity {
     private float speed = 1f;
     private long pointA = C.TIME_UNSET, pointB = C.TIME_UNSET;
     private boolean controlsLocked = false;
+    private boolean gesturesEnabled = true;
+    private boolean resumeEnabled = true;
+    private TextView gestureOverlay;
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(), this::addVideos);
     private final ActivityResultLauncher<String[]> subtitlePicker = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), this::addSubtitle);
+    private final ActivityResultLauncher<Intent> libraryLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
+                    addVideos(Collections.singletonList(result.getData().getData()));
+                }
+            });
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -77,8 +86,10 @@ public class MainActivity extends AppCompatActivity {
         playerView = findViewById(R.id.playerView);
         titleText = findViewById(R.id.titleText);
         bottomBar = findViewById(R.id.bottomBar);
+        gestureOverlay = findViewById(R.id.gestureOverlay);
         player = new ExoPlayer.Builder(this).build();
         playerView.setPlayer(player);
+        restoreSettings();
         wireButtons();
         wirePlayer();
         wireGestures();
@@ -86,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void wireButtons() {
-        findViewById(R.id.openButton).setOnClickListener(v -> videoPicker.launch(new String[]{"video/*"}));
+        findViewById(R.id.openButton).setOnClickListener(v -> libraryLauncher.launch(new Intent(this, LibraryActivity.class)));
         findViewById(R.id.subtitleButton).setOnClickListener(v -> {
             if (current < 0) toast("Open a video first");
             else subtitlePicker.launch(new String[]{"text/*", "application/x-subrip", "text/vtt"});
@@ -159,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
         if (index < 0) index = videos.size() - 1;
         if (index >= videos.size()) index = 0;
         current = index;
-        player.seekTo(index, savedPosition(videos.get(index)));
+        player.seekTo(index, resumeEnabled ? savedPosition(videos.get(index)) : 0);
         player.prepare();
         if (play) player.play();
         titleText.setText(names.get(index));
@@ -184,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
         final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×"};
         final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f};
         new AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(labels, indexOf(values, speed), (d, which) -> {
-            speed = values[which]; player.setPlaybackSpeed(speed); ((Button) anchor).setText("SPEED " + labels[which]); d.dismiss();
+            speed = values[which]; player.setPlaybackSpeed(speed); prefs.edit().putFloat("speed", speed).apply(); ((Button) anchor).setText("SPEED " + labels[which]); d.dismiss();
         }).show();
     }
 
@@ -225,20 +236,45 @@ public class MainActivity extends AppCompatActivity {
         GestureDetector detector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override public boolean onDown(@NonNull MotionEvent e) { return true; }
             @Override public void onLongPress(@NonNull MotionEvent e) { if (controlsLocked) toggleLock(); }
+            @Override public boolean onSingleTapConfirmed(@NonNull MotionEvent e) {
+                if (!controlsLocked) playerView.showController();
+                return true;
+            }
+            @Override public boolean onDoubleTap(@NonNull MotionEvent e) {
+                if (!gesturesEnabled || controlsLocked) return false;
+                float third = playerView.getWidth() / 3f;
+                if (e.getX() < third) {
+                    player.seekTo(Math.max(0, player.getCurrentPosition() - 10_000));
+                    showGesture("↶ 10 seconds");
+                } else if (e.getX() > third * 2) {
+                    player.seekTo(Math.min(player.getDuration(), player.getCurrentPosition() + 10_000));
+                    showGesture("10 seconds ↷");
+                } else {
+                    if (player.isPlaying()) player.pause(); else player.play();
+                    showGesture(player.isPlaying() ? "▶ Play" : "Ⅱ Pause");
+                }
+                return true;
+            }
             @Override public boolean onScroll(MotionEvent first, @NonNull MotionEvent now, float dx, float dy) {
-                if (first == null || controlsLocked) return false;
+                if (first == null || controlsLocked || !gesturesEnabled) return false;
                 float adx = now.getX() - first.getX(), ady = now.getY() - first.getY();
                 if (Math.abs(adx) > Math.abs(ady)) {
-                    if (Math.abs(dx) > 2) player.seekTo(Math.max(0, player.getCurrentPosition() - (long)dx * 35));
+                    if (Math.abs(dx) > 2) {
+                        long next = Math.max(0, Math.min(player.getDuration(), player.getCurrentPosition() - (long) dx * 35));
+                        player.seekTo(next); showGesture(formatTime(next));
+                    }
                 } else if (first.getX() < playerView.getWidth()/2f) {
                     WindowManager.LayoutParams p = getWindow().getAttributes();
                     float base = p.screenBrightness < 0 ? .5f : p.screenBrightness;
                     p.screenBrightness = Math.max(.05f, Math.min(1f, base - dy/playerView.getHeight()));
                     getWindow().setAttributes(p);
+                    showGesture("Brightness " + Math.round(p.screenBrightness * 100) + "%");
                 } else {
                     int max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
                     int step = dy < 0 ? 1 : -1;
-                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.max(0, Math.min(max, audio.getStreamVolume(AudioManager.STREAM_MUSIC)+step)), 0);
+                    int level = Math.max(0, Math.min(max, audio.getStreamVolume(AudioManager.STREAM_MUSIC)+step));
+                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0);
+                    showGesture("Volume " + Math.round(level * 100f / max) + "%");
                 }
                 return true;
             }
@@ -293,13 +329,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(View view) {
-        String[] options={"Repeat: "+(player.getRepeatMode()==Player.REPEAT_MODE_OFF?"Off":"On"),"Shuffle: "+(player.getShuffleModeEnabled()?"Off":"On"),"Keep screen awake","Reset playback history"};
-        new AlertDialog.Builder(this).setTitle("Settings").setItems(options,(d,w)->{
-            if(w==0)player.setRepeatMode(player.getRepeatMode()==Player.REPEAT_MODE_OFF?Player.REPEAT_MODE_ALL:Player.REPEAT_MODE_OFF);
-            if(w==1)player.setShuffleModeEnabled(!player.getShuffleModeEnabled());
-            if(w==2){getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);toast("Screen will stay awake");}
-            if(w==3){prefs.edit().clear().apply();toast("Playback history cleared");}
-        }).show();
+        String[] options={"Repeat playlist","Shuffle videos","Keep screen awake","Resume where I stopped","Swipe and double-tap controls"};
+        boolean[] checked={player.getRepeatMode()!=Player.REPEAT_MODE_OFF,player.getShuffleModeEnabled(),prefs.getBoolean("keep_awake",false),resumeEnabled,gesturesEnabled};
+        new AlertDialog.Builder(this).setTitle("Settings").setMultiChoiceItems(options,checked,(d,w,on)->{
+            if(w==0){player.setRepeatMode(on?Player.REPEAT_MODE_ALL:Player.REPEAT_MODE_OFF);prefs.edit().putBoolean("repeat",on).apply();}
+            if(w==1){player.setShuffleModeEnabled(on);prefs.edit().putBoolean("shuffle",on).apply();}
+            if(w==2){prefs.edit().putBoolean("keep_awake",on).apply();applyKeepAwake(on);}
+            if(w==3){resumeEnabled=on;prefs.edit().putBoolean("resume",on).apply();}
+            if(w==4){gesturesEnabled=on;prefs.edit().putBoolean("gestures",on).apply();}
+        }).setNeutralButton("Clear history",(d,w)->{clearHistoryOnly();toast("Playback history cleared");}).setPositiveButton("Done",null).show();
+    }
+
+    private void restoreSettings() {
+        speed = prefs.getFloat("speed", 1f);
+        resumeEnabled = prefs.getBoolean("resume", true);
+        gesturesEnabled = prefs.getBoolean("gestures", true);
+        player.setPlaybackSpeed(speed);
+        player.setRepeatMode(prefs.getBoolean("repeat", false) ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
+        player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));
+        applyKeepAwake(prefs.getBoolean("keep_awake", false));
+        ((Button)findViewById(R.id.speedButton)).setText("SPEED " + speed + "×");
+    }
+
+    private void applyKeepAwake(boolean on) {
+        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    private void clearHistoryOnly() {
+        SharedPreferences.Editor editor = prefs.edit();
+        for (String key : prefs.getAll().keySet()) if (key.startsWith("pos:")) editor.remove(key);
+        editor.apply();
+    }
+
+    private void showGesture(String text) {
+        gestureOverlay.setText(text); gestureOverlay.setVisibility(View.VISIBLE); gestureOverlay.setAlpha(1f);
+        gestureOverlay.animate().alpha(0f).setStartDelay(650).setDuration(300).withEndAction(() -> gestureOverlay.setVisibility(View.GONE)).start();
     }
 
     private void showInfo() {

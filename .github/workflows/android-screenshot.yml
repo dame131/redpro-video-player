@@ -58,7 +58,7 @@ jobs:
             set +e
             python tools/validate_screenshots.py proof/screenshots --required \
               01-home.png 02-settings.png 03-more-menu.png 04-search.png \
-              05-playback-speed.png 06-system-video-picker.png
+              05-playback-speed.png 06-video-library.png 07-system-video-picker.png
             VALIDATION_STATUS=$?
             set -e
             if grep -Eq 'FATAL EXCEPTION.*com\.mr131\.redplayer|ANR in com\.mr131\.redplayer' proof/logcat.txt; then

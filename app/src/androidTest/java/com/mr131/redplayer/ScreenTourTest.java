@@ -64,7 +64,9 @@ public final class ScreenTourTest {
         capture("05-playback-speed", By.text("Playback speed"), true);
         device.pressBack();
         clickResource("openButton");
-        capture("06-system-video-picker", By.pkg("com.google.android.documentsui"), false);
+        capture("06-video-library", By.desc("Video Library"), true);
+        waitFor(By.text("BROWSE FILES"), "Browse files").click();
+        capture("07-system-video-picker", By.pkg("com.google.android.documentsui"), false);
     }
 
     private void clickResource(String id) {
