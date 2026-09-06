@@ -38,7 +38,7 @@ jobs:
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.mr131.redplayer
             adb shell am start -n com.mr131.redplayer/.MainActivity
-            sleep 8
+            sleep 45
             adb exec-out screencap -p > 131-red-player-real-home.png
             adb logcat -d > 131-red-player-logcat.txt
       - uses: actions/upload-artifact@v4
