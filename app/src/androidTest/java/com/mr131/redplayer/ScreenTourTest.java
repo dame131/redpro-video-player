@@ -54,7 +54,11 @@ public final class ScreenTourTest {
         for (int attempt = 0; attempt < 3; attempt++) {
             UiObject2 wait = device.wait(Until.findObject(By.res("android", "aerr_wait")), 1_000);
             if (wait == null) return;
-            wait.click();
+            try {
+                wait.click();
+            } catch (StaleObjectException ignored) {
+                return;
+            }
             device.waitForIdle();
         }
     }
