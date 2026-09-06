@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Rect;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -22,6 +23,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 @RunWith(AndroidJUnit4.class)
 public final class ScreenTourTest {
@@ -133,7 +136,18 @@ public final class ScreenTourTest {
             assertEquals("Wrong foreground app for " + name, PACKAGE, device.getCurrentPackageName());
         }
         device.waitForIdle();
-        assertTrue("Screenshot failed: " + name,
-                device.takeScreenshot(new File(output, name + ".png")));
+        assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
+    }
+
+    private boolean takeScreenshot(File destination) {
+        Bitmap bitmap = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
+        if (bitmap == null) return false;
+        try (FileOutputStream stream = new FileOutputStream(destination)) {
+            return bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        } catch (IOException error) {
+            return false;
+        } finally {
+            bitmap.recycle();
+        }
     }
 }
