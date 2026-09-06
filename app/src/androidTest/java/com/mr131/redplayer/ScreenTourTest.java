@@ -57,16 +57,20 @@ public final class ScreenTourTest {
         clickResource("moreButton");
         capture("03-more-menu", By.text("Private vault"), true);
         device.pressBack();
+        clickResource("moreButton");
+        waitFor(By.text("Private vault"), "Private vault menu item").click();
+        capture("04-private-vault", By.desc("Private Vault"), true);
+        device.pressBack();
         clickResource("searchButton");
-        capture("04-search", By.text("Search videos"), true);
+        capture("05-search", By.text("Search videos"), true);
         device.pressBack();
         clickResource("speedButton");
-        capture("05-playback-speed", By.text("Playback speed"), true);
+        capture("06-playback-speed", By.text("Playback speed"), true);
         device.pressBack();
         clickResource("openButton");
-        capture("06-video-library", By.desc("Video Library"), true);
+        capture("07-video-library", By.desc("Video Library"), true);
         waitFor(By.text("BROWSE FILES"), "Browse files").click();
-        capture("07-system-video-picker", By.pkg("com.google.android.documentsui"), false);
+        capture("08-system-video-picker", By.pkg("com.google.android.documentsui"), false);
     }
 
     private void clickResource(String id) {

@@ -33,6 +33,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
@@ -49,6 +50,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executor;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
     private PlayerView playerView;
@@ -67,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean gesturesEnabled = true;
     private boolean resumeEnabled = true;
     private TextView gestureOverlay;
+    private Uri subtitleUri;
+    private long subtitleOffsetMs = 0;
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(), this::addVideos);
@@ -78,6 +87,11 @@ public class MainActivity extends AppCompatActivity {
                     addVideos(Collections.singletonList(result.getData().getData()));
                 }
             });
+    private final ActivityResultLauncher<Intent> vaultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null)
+                    addVideos(Collections.singletonList(result.getData().getData()));
+            });
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -87,13 +101,20 @@ public class MainActivity extends AppCompatActivity {
         titleText = findViewById(R.id.titleText);
         bottomBar = findViewById(R.id.bottomBar);
         gestureOverlay = findViewById(R.id.gestureOverlay);
-        player = new ExoPlayer.Builder(this).build();
-        playerView.setPlayer(player);
-        restoreSettings();
         wireButtons();
-        wirePlayer();
         wireGestures();
-        handleIncomingVideo(getIntent());
+        startService(new Intent(this, PlaybackService.class));
+        connectPlayer(0);
+    }
+
+    private void connectPlayer(int attempt) {
+        player = PlaybackService.player();
+        if (player == null) {
+            if (attempt < 60) handler.postDelayed(() -> connectPlayer(attempt + 1), 50);
+            else toast("Playback service could not start");
+            return;
+        }
+        playerView.setPlayer(player); restoreSettings(); wirePlayer(); handleIncomingVideo(getIntent());
     }
 
     private void wireButtons() {
@@ -178,9 +199,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void addSubtitle(Uri uri) {
         if (uri == null || current < 0) return;
-        String name = displayName(uri).toLowerCase(Locale.US);
+        subtitleUri = uri; subtitleOffsetMs = prefs.getLong("subtitle_offset", 0); applySubtitle();
+    }
+
+    private void applySubtitle() {
+        if (subtitleUri == null || current < 0) return;
+        Uri playableSubtitle = shiftSrt(subtitleUri, subtitleOffsetMs);
+        String name = displayName(subtitleUri).toLowerCase(Locale.US);
         String mime = name.endsWith(".vtt") ? MimeTypes.TEXT_VTT : MimeTypes.APPLICATION_SUBRIP;
-        MediaItem.SubtitleConfiguration sub = new MediaItem.SubtitleConfiguration.Builder(uri)
+        MediaItem.SubtitleConfiguration sub = new MediaItem.SubtitleConfiguration.Builder(playableSubtitle)
                 .setMimeType(mime).setLanguage("en").setSelectionFlags(C.SELECTION_FLAG_DEFAULT).build();
         MediaItem item = new MediaItem.Builder().setUri(videos.get(current))
                 .setSubtitleConfigurations(Collections.singletonList(sub)).setTag(names.get(current)).build();
@@ -188,7 +215,7 @@ public class MainActivity extends AppCompatActivity {
         player.replaceMediaItem(current, item);
         player.seekTo(current, pos);
         player.play();
-        toast("Subtitles added");
+        toast("Subtitles added • offset " + (subtitleOffsetMs / 1000f) + "s");
     }
 
     private void showSpeed(View anchor) {
@@ -296,10 +323,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMore(View anchor) {
         PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add("Audio tracks"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
+        menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
             if(title.equals("Audio tracks"))showAudioTracks();
+            if(title.equals("Equalizer & Bass"))showEqualizer();
+            if(title.equals("Subtitle timing"))showSubtitleTiming();
             if(title.equals("Private vault"))unlockVault();
             if(title.equals("Rotate screen"))setRequestedOrientation(getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE?ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             if(title.equals("Sleep timer"))showSleepTimer();
@@ -308,18 +337,40 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAudioTracks() {
-        Tracks tracks=player.getCurrentTracks(); ArrayList<Tracks.Group> groups=new ArrayList<>(); ArrayList<String> labels=new ArrayList<>();
-        for(Tracks.Group g:tracks.getGroups())if(g.getType()==C.TRACK_TYPE_AUDIO)for(int i=0;i<g.length;i++){groups.add(g);String lang=g.getTrackFormat(i).language;labels.add("Audio "+(labels.size()+1)+(lang==null?"":" • "+lang));}
+        Tracks tracks=player.getCurrentTracks(); ArrayList<Tracks.Group> groups=new ArrayList<>(); ArrayList<Integer> trackIndexes=new ArrayList<>(); ArrayList<String> labels=new ArrayList<>();
+        for(Tracks.Group g:tracks.getGroups())if(g.getType()==C.TRACK_TYPE_AUDIO)for(int i=0;i<g.length;i++){groups.add(g);trackIndexes.add(i);String lang=g.getTrackFormat(i).language;String label=g.getTrackFormat(i).label;labels.add("Audio "+(labels.size()+1)+(lang==null?"":" • "+lang)+(label==null?"":" • "+label));}
         if(labels.isEmpty()){toast("No extra audio tracks found");return;}
-        new AlertDialog.Builder(this).setTitle("Audio tracks").setItems(labels.toArray(new String[0]),(d,w)->{Tracks.Group g=groups.get(w);player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon().setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(),0)).build());}).show();
+        new AlertDialog.Builder(this).setTitle("Audio tracks").setSingleChoiceItems(labels.toArray(new String[0]),-1,(d,w)->{Tracks.Group g=groups.get(w);player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon().setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(),trackIndexes.get(w))).build());d.dismiss();toast("Audio track changed");}).show();
     }
 
     private void unlockVault() {
-        BiometricManager manager=BiometricManager.from(this);
-        if(manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG|BiometricManager.Authenticators.DEVICE_CREDENTIAL)!=BiometricManager.BIOMETRIC_SUCCESS){toast("Set up fingerprint or phone lock first");return;}
-        Executor executor=ContextCompat.getMainExecutor(this);
-        BiometricPrompt prompt=new BiometricPrompt(this,executor,new BiometricPrompt.AuthenticationCallback(){@Override public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult r){toast("Private vault unlocked");videoPicker.launch(new String[]{"video/*"});}});
-        prompt.authenticate(new BiometricPrompt.PromptInfo.Builder().setTitle("131 Private Vault").setSubtitle("Unlock your private videos").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG|BiometricManager.Authenticators.DEVICE_CREDENTIAL).build());
+        vaultLauncher.launch(new Intent(this, VaultActivity.class));
+    }
+
+    private void showEqualizer() {
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(36,16,36,8);panel.setBackgroundColor(android.graphics.Color.BLACK);
+        TextView eqLabel=new TextView(this);eqLabel.setText("Equalizer level");eqLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(eqLabel);
+        android.widget.SeekBar eq=new android.widget.SeekBar(this);eq.setMax(100);eq.setProgress(prefs.getInt("eq_level",50));panel.addView(eq);
+        TextView bassLabel=new TextView(this);bassLabel.setText("Bass boost");bassLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(bassLabel);
+        android.widget.SeekBar bass=new android.widget.SeekBar(this);bass.setMax(100);bass.setProgress(prefs.getInt("bass",50));panel.addView(bass);
+        new AlertDialog.Builder(this).setTitle("Equalizer & Bass Boost").setView(panel).setNegativeButton("Off",(d,w)->{prefs.edit().putBoolean("eq_on",false).apply();PlaybackService.setEqualizer(false,eq.getProgress(),bass.getProgress());}).setPositiveButton("Save",(d,w)->{prefs.edit().putBoolean("eq_on",true).putInt("eq_level",eq.getProgress()).putInt("bass",bass.getProgress()).apply();PlaybackService.setEqualizer(true,eq.getProgress(),bass.getProgress());}).show();
+    }
+
+    private void showSubtitleTiming() {
+        if(subtitleUri==null){toast("Load an SRT subtitle first");return;}
+        String[] labels={"2 seconds earlier","1 second earlier","0.5 seconds earlier","No offset","0.5 seconds later","1 second later","2 seconds later"};
+        long[] values={-2000,-1000,-500,0,500,1000,2000};
+        new AlertDialog.Builder(this).setTitle("Subtitle timing").setItems(labels,(d,w)->{subtitleOffsetMs=values[w];prefs.edit().putLong("subtitle_offset",subtitleOffsetMs).apply();applySubtitle();}).show();
+    }
+
+    private Uri shiftSrt(Uri source,long offset) {
+        if(offset==0)return source;
+        try(InputStream in=getContentResolver().openInputStream(source)){
+            if(in==null)return source;String text=new String(in.readAllBytes(),StandardCharsets.UTF_8);
+            Pattern p=Pattern.compile("(\\d{2}):(\\d{2}):(\\d{2}),(\\d{3})");Matcher m=p.matcher(text);StringBuffer out=new StringBuffer();
+            while(m.find()){long ms=((Long.parseLong(m.group(1))*60+Long.parseLong(m.group(2)))*60+Long.parseLong(m.group(3)))*1000+Long.parseLong(m.group(4));ms=Math.max(0,ms+offset);long h=ms/3600000,mi=(ms/60000)%60,s=(ms/1000)%60,x=ms%1000;m.appendReplacement(out,String.format(Locale.US,"%02d:%02d:%02d,%03d",h,mi,s,x));}m.appendTail(out);
+            File folder=new File(getCacheDir(),"subtitles");folder.mkdirs();File file=new File(folder,"adjusted.srt");try(FileOutputStream stream=new FileOutputStream(file)){stream.write(out.toString().getBytes(StandardCharsets.UTF_8));}return FileProvider.getUriForFile(this,getPackageName()+".files",file);
+        }catch(Exception e){toast("Subtitle timing could not be changed");return source;}
     }
 
     private void showSleepTimer() {
@@ -347,6 +398,7 @@ public class MainActivity extends AppCompatActivity {
         player.setPlaybackSpeed(speed);
         player.setRepeatMode(prefs.getBoolean("repeat", false) ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
         player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));
+        PlaybackService.setEqualizer(prefs.getBoolean("eq_on",false),prefs.getInt("eq_level",50),prefs.getInt("bass",50));
         applyKeepAwake(prefs.getBoolean("keep_awake", false));
         ((Button)findViewById(R.id.speedButton)).setText("SPEED " + speed + "×");
     }
@@ -386,5 +438,5 @@ public class MainActivity extends AppCompatActivity {
 
     @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);}
     @Override protected void onStop(){super.onStop();if(!isInPictureInPictureMode())savePosition();}
-    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);player.release();super.onDestroy();}
+    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);playerView.setPlayer(null);super.onDestroy();}
 }
