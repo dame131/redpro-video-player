@@ -49,7 +49,7 @@ public final class ScreenTourTest {
 
     @Test
     public void captureEveryImplementedScreen() {
-        capture("01-home", By.res(PACKAGE, "root"), true);
+        captureHome();
         clickResource("settingsButton");
         capture("02-settings", By.text("Settings"), true);
         device.pressBack();
@@ -136,6 +136,14 @@ public final class ScreenTourTest {
         }
         device.waitForIdle();
         assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
+    }
+
+    private void captureHome() {
+        homeScenario.onActivity(activity -> assertTrue("Home root is not visible",
+                activity.findViewById(R.id.root).isShown()));
+        assertEquals("Wrong foreground app for 01-home", PACKAGE, device.getCurrentPackageName());
+        device.waitForIdle();
+        assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
     }
 
     private boolean takeScreenshot(File destination) {
