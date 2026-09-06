@@ -9,7 +9,6 @@ until adb shell cmd package path com.android.systemui >/dev/null 2>&1 && \
 adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
-adb shell am wait-for-broadcast-idle
 adb logcat -c
 
 gradle :app:connectedDebugAndroidTest --stacktrace
