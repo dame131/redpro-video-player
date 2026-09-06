@@ -77,6 +77,17 @@ public final class ScreenTourTest {
         capture("09-video-library", By.desc("Video Library"), true);
         waitFor(By.text("BROWSE FILES"), "Browse files").click();
         capture("10-system-video-picker", By.pkg("com.google.android.documentsui"), false);
+        device.pressBack(); device.pressBack();
+        startScreen(SubtitleDownloadActivity.class);
+        capture("11-screen-08-subtitle-downloader", By.desc("Subtitle Downloader Screen 8"), true);
+        startScreen(TechnicalInspectorActivity.class);
+        capture("12-screen-12-technical-inspector", By.desc("Technical Inspector Screen 12"), true);
+        startScreen(HistoryActivity.class);
+        capture("13-screen-18-history-recovery", By.desc("History Screen 18"), true);
+    }
+
+    private void startScreen(Class<?> screen) {
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
     }
 
     private void clickResource(String id) {

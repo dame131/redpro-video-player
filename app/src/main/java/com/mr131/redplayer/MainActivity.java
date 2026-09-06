@@ -34,6 +34,7 @@ import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
@@ -61,6 +62,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private PlayerView playerView;
@@ -105,8 +108,11 @@ public class MainActivity extends AppCompatActivity {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null)
                     addVideos(Collections.singletonList(result.getData().getData()));
             });
+    private final ActivityResultLauncher<Intent> downloadedSubtitleLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addSubtitle(result.getData().getData());});
+    private final ActivityResultLauncher<Intent> historyLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addVideos(Collections.singletonList(result.getData().getData()));});
 
     @Override protected void onCreate(Bundle savedInstanceState) {
+        SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         prefs = getSharedPreferences("red_player", MODE_PRIVATE);
@@ -135,10 +141,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.networkButton).setOnClickListener(v -> showNetworkStream());
         findViewById(R.id.cloudButton).setOnClickListener(v -> cloudLauncher.launch(new Intent(this, CloudImportActivity.class)));
         findViewById(R.id.decoderButton).setOnClickListener(this::toggleDecoder);
-        findViewById(R.id.subtitleButton).setOnClickListener(v -> {
-            if (current < 0) toast("Open a video first");
-            else subtitlePicker.launch(new String[]{"text/*", "application/x-subrip", "text/vtt"});
-        });
+        findViewById(R.id.subtitleButton).setOnClickListener(v -> {if(current<0)toast("Open a video first");else showSubtitleChoices();});
         findViewById(R.id.speedButton).setOnClickListener(this::showSpeed);
         findViewById(R.id.fitButton).setOnClickListener(v -> changeFit());
         findViewById(R.id.abButton).setOnClickListener(this::setAB);
@@ -152,6 +155,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.searchButton).setOnClickListener(v -> showSearch());
         findViewById(R.id.moreButton).setOnClickListener(this::showMore);
     }
+
+    private void showSubtitleChoices(){new AlertDialog.Builder(this).setTitle("Subtitles").setItems(new String[]{"Download matching subtitles","Load SRT or VTT file","Adjust subtitle timing"},(d,w)->{if(w==0)downloadedSubtitleLauncher.launch(new Intent(this,SubtitleDownloadActivity.class).putExtra("video_name",names.get(current)));if(w==1)subtitlePicker.launch(new String[]{"text/*","application/x-subrip","text/vtt"});if(w==2)showSubtitleTiming();}).show();}
 
     private void showNetworkStream() {
         EditText input=new EditText(this);input.setHint("https://, http://, rtsp://, .m3u8, .mp4, .mkv");input.setSingleLine(true);input.setTextColor(android.graphics.Color.WHITE);input.setHintTextColor(android.graphics.Color.LTGRAY);input.setBackgroundColor(android.graphics.Color.rgb(34,34,34));input.setPadding(24,20,24,20);
@@ -192,9 +197,8 @@ public class MainActivity extends AppCompatActivity {
                 if (current >= 0 && current < names.size()) titleText.setText(names.get(current));
             }
             @Override public void onPlayerError(@NonNull PlaybackException error) {
-                new AlertDialog.Builder(MainActivity.this).setTitle("Unsupported video")
-                        .setMessage("This file could not be played. Try another file or open it in VLC.")
-                        .setPositiveButton("OK", null).show();
+                prefs.edit().putString("last_error",error.getErrorCodeName()+": "+error.getMessage()).apply();
+                new AlertDialog.Builder(MainActivity.this).setTitle("Playback recovery").setMessage("The video stopped: "+error.getErrorCodeName()+"\n\nRetry, change decoder, or skip this file.").setPositiveButton("Retry",(d,w)->{player.prepare();player.play();}).setNeutralButton("Change decoder",(d,w)->toggleDecoder(findViewById(R.id.decoderButton))).setNegativeButton("Next video",(d,w)->playIndex(current+1,true)).show();
             }
         });
         handler.post(abLoop);
@@ -368,12 +372,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMore(View anchor) {
         PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
+        menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Download subtitles"); menu.getMenu().add("History & recovery"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
             if(title.equals("Audio tracks"))showAudioTracks();
             if(title.equals("Equalizer & Bass"))showEqualizer();
             if(title.equals("Subtitle timing"))showSubtitleTiming();
+            if(title.equals("Download subtitles")){if(current<0)toast("Open a video first");else downloadedSubtitleLauncher.launch(new Intent(this,SubtitleDownloadActivity.class).putExtra("video_name",names.get(current)));}
+            if(title.equals("History & recovery"))historyLauncher.launch(new Intent(this,HistoryActivity.class));
             if(title.equals("Private vault"))unlockVault();
             if(title.equals("Rotate screen"))setRequestedOrientation(getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE?ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             if(title.equals("Sleep timer"))showSleepTimer();
@@ -470,8 +476,9 @@ public class MainActivity extends AppCompatActivity {
     private void showInfo() {
         if(current<0){toast("Open a video first");return;}
         androidx.media3.common.Format f=localPlayer.getVideoFormat();
-        String details=names.get(current)+"\n\nDuration: "+formatTime(player.getDuration())+"\nResolution: "+(f==null?"Unknown":f.width+" × "+f.height)+"\nVideo codec: "+(f==null||f.codecs==null?"Unknown":f.codecs)+"\nLocation: "+videos.get(current);
-        new AlertDialog.Builder(this).setTitle("Video information").setMessage(details).setPositiveButton("OK",null).show();
+        androidx.media3.common.Format audio=null;for(Tracks.Group g:localPlayer.getCurrentTracks().getGroups())if(g.getType()==C.TRACK_TYPE_AUDIO)for(int i=0;i<g.length;i++)if(g.isTrackSelected(i)){audio=g.getTrackFormat(i);break;}
+        String details=names.get(current)+"\n\nDuration: "+formatTime(player.getDuration())+"\nResolution: "+(f==null?"Unknown":f.width+" × "+f.height)+"\nFrame rate: "+(f==null||f.frameRate<=0?"Unknown":String.format(Locale.US,"%.2f fps",f.frameRate))+"\nVideo bitrate: "+(f==null||f.bitrate<=0?"Unknown":(f.bitrate/1000)+" kbps")+"\nVideo codec: "+(f==null?"Unknown":(f.codecs==null?f.sampleMimeType:f.codecs))+"\nAudio codec: "+(audio==null?"Unknown":(audio.codecs==null?audio.sampleMimeType:audio.codecs))+"\nAudio channels: "+(audio==null||audio.channelCount<=0?"Unknown":audio.channelCount)+"\nSample rate: "+(audio==null||audio.sampleRate<=0?"Unknown":audio.sampleRate+" Hz")+"\nAudio bitrate: "+(audio==null||audio.bitrate<=0?"Unknown":(audio.bitrate/1000)+" kbps")+"\nDecoder: "+(softwareDecoder?"Software":"Hardware")+"\nLocation: "+videos.get(current);
+        startActivity(new Intent(this,TechnicalInspectorActivity.class).putExtra("details",details));
     }
 
     private String displayName(Uri uri) {
@@ -480,7 +487,7 @@ public class MainActivity extends AppCompatActivity {
     }
     private String formatTime(long ms){if(ms<0)return"Unknown";long s=ms/1000;return String.format(Locale.US,"%d:%02d:%02d",s/3600,(s/60)%60,s%60);}
     private long savedPosition(Uri uri){return prefs.getLong("pos:"+uri,0);}
-    private void savePosition(){if(current>=0&&current<videos.size())prefs.edit().putLong("pos:"+videos.get(current),player.getCurrentPosition()).apply();}
+    private void savePosition(){if(current>=0&&current<videos.size()){long position=player.getCurrentPosition();prefs.edit().putLong("pos:"+videos.get(current),position).apply();try{JSONArray source=new JSONArray(prefs.getString("history","[]"));JSONArray next=new JSONArray();JSONObject item=new JSONObject().put("uri",videos.get(current).toString()).put("name",names.get(current)).put("position",position).put("watched",System.currentTimeMillis());next.put(item);for(int i=0;i<source.length()&&next.length()<50;i++){JSONObject old=source.optJSONObject(i);if(old!=null&&!old.optString("uri").equals(videos.get(current).toString()))next.put(old);}prefs.edit().putString("history",next.toString()).apply();}catch(Exception ignored){}}}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_SHORT).show();}
     private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(Collections.singletonList(intent.getData()));}
 
