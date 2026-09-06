@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -36,3 +36,11 @@ jobs:
           name: 131-Red-Player-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Prepare phone download
+        run: cp app/build/outputs/apk/debug/app-debug.apk 131-Red-Player.apk
+      - name: Publish permanent APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v1.0.0 >/dev/null 2>&1 || gh release create v1.0.0 --title "131 Red Player v1.0.0" --notes "Installable Android build of 131 Red Player."
+          gh release upload v1.0.0 131-Red-Player.apk --clobber
