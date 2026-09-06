@@ -4,6 +4,12 @@ mkdir -p proof/screenshots proof/reports
 adb wait-for-device
 until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 2; done
 adb shell input keyevent 82
+until adb shell cmd package path com.android.systemui >/dev/null 2>&1 && \
+      adb shell 'test -d /storage/emulated/0/Android' >/dev/null 2>&1; do sleep 2; done
+adb shell settings put global window_animation_scale 0
+adb shell settings put global transition_animation_scale 0
+adb shell settings put global animator_duration_scale 0
+adb shell am wait-for-broadcast-idle
 adb logcat -c
 
 gradle :app:connectedDebugAndroidTest --stacktrace

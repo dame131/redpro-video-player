@@ -38,12 +38,23 @@ public final class ScreenTourTest {
     public void launchRealApp() {
         device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        dismissPlatformErrorDialog();
         homeScenario = ActivityScenario.launch(MainActivity.class);
+        dismissPlatformErrorDialog();
         assertTrue("Home screen did not become ready",
                 device.wait(Until.hasObject(By.desc("131 Red Player Home Ready")), START_TIMEOUT_MS));
         device.waitForIdle();
         output = new File(target.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "screenshots");
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
+    }
+
+    private void dismissPlatformErrorDialog() {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            UiObject2 wait = device.wait(Until.findObject(By.res("android", "aerr_wait")), 1_000);
+            if (wait == null) return;
+            wait.click();
+            device.waitForIdle();
+        }
     }
 
     @Test
