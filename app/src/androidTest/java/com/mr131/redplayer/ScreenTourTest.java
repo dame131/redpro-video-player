@@ -79,7 +79,7 @@ public final class ScreenTourTest {
         clickScrollableResource(R.id.openButton);
         capture("09-video-library", By.desc("Video Library"), true);
         click(By.text("BROWSE FILES"), "Browse files");
-        capture("10-system-video-picker", By.pkg("com.google.android.documentsui"), false);
+        capture("10-system-video-picker", By.pkg("com.android.documentsui"), false);
         device.pressBack(); device.pressBack();
         startScreen(SubtitleDownloadActivity.class);
         capture("11-screen-08-subtitle-downloader", By.desc("Subtitle Downloader Screen 8"), true);
