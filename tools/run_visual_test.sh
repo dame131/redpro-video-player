@@ -14,7 +14,7 @@ adb logcat -c
 gradle :app:connectedDebugAndroidTest --stacktrace
 test_status=$?
 
-adb pull /sdcard/Android/data/com.mr131.redplayer/files/Pictures/screenshots proof/screenshots || true
+adb exec-out run-as com.mr131.redplayer tar -C files/screenshots -cf - . | tar -C proof/screenshots -xf - || true
 cp -R app/build/reports/androidTests proof/reports/ || true
 adb shell uiautomator dump /sdcard/current-window.xml || true
 adb pull /sdcard/current-window.xml proof/ || true

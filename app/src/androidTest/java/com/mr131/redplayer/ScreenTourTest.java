@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
-import android.os.Environment;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.core.app.ActivityScenario;
@@ -44,7 +43,7 @@ public final class ScreenTourTest {
         assertTrue("Home screen did not become ready",
                 device.wait(Until.hasObject(By.desc("131 Red Player Home Ready")), START_TIMEOUT_MS));
         device.waitForIdle();
-        output = new File(target.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "screenshots");
+        output = new File(target.getFilesDir(), "screenshots");
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
     }
 
