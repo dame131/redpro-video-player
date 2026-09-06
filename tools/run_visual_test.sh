@@ -13,6 +13,7 @@ adb logcat -c
 
 adb install -r -t app/build/outputs/apk/debug/app-debug.apk
 adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell pm grant com.mr131.redplayer android.permission.READ_EXTERNAL_STORAGE || true
 adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
