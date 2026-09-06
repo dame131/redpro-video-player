@@ -45,6 +45,7 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.cast.CastPlayer;
+import androidx.media3.cast.SessionAvailabilityListener;
 import androidx.mediarouter.app.MediaRouteButton;
 import com.google.android.gms.cast.framework.CastButtonFactory;
 import com.google.android.gms.cast.framework.CastContext;
@@ -169,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupCast() {
         try {
             CastContext context=CastContext.getSharedInstance(this);CastButtonFactory.setUpMediaRouteButton(getApplicationContext(),(MediaRouteButton)findViewById(R.id.castButton));castPlayer=new CastPlayer(context);
-            castPlayer.setSessionAvailabilityListener(new CastPlayer.SessionAvailabilityListener(){
+            castPlayer.setSessionAvailabilityListener(new SessionAvailabilityListener(){
                 @Override public void onCastSessionAvailable(){
                     if(current<0||current>=videos.size()){toast("Choose a video link first");return;}String scheme=videos.get(current).getScheme();
                     if(!"http".equalsIgnoreCase(scheme)&&!"https".equalsIgnoreCase(scheme)){toast("Casting needs a network or cloud-accessible link");return;}
@@ -468,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showInfo() {
         if(current<0){toast("Open a video first");return;}
-        androidx.media3.common.Format f=player.getVideoFormat();
+        androidx.media3.common.Format f=localPlayer.getVideoFormat();
         String details=names.get(current)+"\n\nDuration: "+formatTime(player.getDuration())+"\nResolution: "+(f==null?"Unknown":f.width+" × "+f.height)+"\nVideo codec: "+(f==null||f.codecs==null?"Unknown":f.codecs)+"\nLocation: "+videos.get(current);
         new AlertDialog.Builder(this).setTitle("Video information").setMessage(details).setPositiveButton("OK",null).show();
     }
