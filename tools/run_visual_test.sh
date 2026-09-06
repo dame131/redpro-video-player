@@ -11,8 +11,12 @@ adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 adb logcat -c
 
-gradle :app:connectedDebugAndroidTest --stacktrace
-test_status=$?
+adb install -r -t app/build/outputs/apk/debug/app-debug.apk
+adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r \
+  com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
+test_status=${PIPESTATUS[0]}
+if ! grep -q 'OK (1 test)' proof/instrumentation.txt; then test_status=1; fi
 
 adb exec-out run-as com.mr131.redplayer tar -C files/screenshots -cf - . | tar -C proof/screenshots -xf - || true
 cp -R app/build/reports/androidTests proof/reports/ || true
