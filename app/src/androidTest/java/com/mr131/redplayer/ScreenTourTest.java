@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
@@ -114,7 +113,7 @@ public final class ScreenTourTest {
     }
 
     private void clickScrollableResource(int id) {
-        onView(withId(id)).perform(scrollTo(), click());
+        onView(withId(id)).perform(scrollTo(), androidx.test.espresso.action.ViewActions.click());
         device.waitForIdle();
     }
 
