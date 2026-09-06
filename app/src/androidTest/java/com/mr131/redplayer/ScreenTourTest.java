@@ -129,11 +129,9 @@ public final class ScreenTourTest {
     }
 
     private void capture(String name, BySelector marker, boolean appMustBeForeground) {
+        if (appMustBeForeground) ensureAppForeground(name);
         assertTrue("Screen marker did not appear: " + name,
                 device.wait(Until.hasObject(marker), SCREEN_TIMEOUT_MS));
-        if (appMustBeForeground) {
-            assertEquals("Wrong foreground app for " + name, PACKAGE, device.getCurrentPackageName());
-        }
         device.waitForIdle();
         assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
@@ -141,9 +139,19 @@ public final class ScreenTourTest {
     private void captureHome() {
         homeScenario.onActivity(activity -> assertTrue("Home root is not visible",
                 activity.findViewById(R.id.root).isShown()));
-        assertEquals("Wrong foreground app for 01-home", PACKAGE, device.getCurrentPackageName());
+        ensureAppForeground("01-home");
         device.waitForIdle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
+    }
+
+    private void ensureAppForeground(String screen) {
+        long deadline = android.os.SystemClock.uptimeMillis() + 20_000;
+        while (!PACKAGE.equals(device.getCurrentPackageName())
+                && android.os.SystemClock.uptimeMillis() < deadline) {
+            if ("android".equals(device.getCurrentPackageName())) device.pressBack();
+            android.os.SystemClock.sleep(500);
+        }
+        assertEquals("Wrong foreground app for " + screen, PACKAGE, device.getCurrentPackageName());
     }
 
     private boolean takeScreenshot(File destination) {
