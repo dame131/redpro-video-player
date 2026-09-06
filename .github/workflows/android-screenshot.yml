@@ -1,19 +1,17 @@
-name: Capture Real Android Screen
+name: Android Build and Screen Proof
 
 on:
   push:
-    branches: ["main"]
-    paths:
-      - ".github/workflows/android-screenshot.yml"
-      - "app/**"
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  screenshot:
+  android-proof:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -24,46 +22,60 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
-      - name: Build app
-        run: gradle :app:assembleDebug
-      - name: Launch app and capture exact screen
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install screenshot validator
+        run: python -m pip install --disable-pip-version-check pillow==11.3.0
+      - name: Build app and UI test
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Launch the real app and capture every screen
+        id: visual_test
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 35
           arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: false
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb shell am force-stop com.mr131.redplayer
-            adb shell am start -n com.mr131.redplayer/.MainActivity
-            sleep 45
-            adb exec-out screencap -p > 131-red-player-real-home.png
-            adb shell input tap 950 1715
-            sleep 3
-            adb exec-out screencap -p > 131-red-player-real-settings.png
-            adb shell input keyevent 4
-            adb shell input tap 1000 135
-            sleep 3
-            adb exec-out screencap -p > 131-red-player-real-more.png
-            adb shell input keyevent 4
-            adb shell input tap 865 135
-            sleep 3
-            adb exec-out screencap -p > 131-red-player-real-search.png
-            adb shell input keyevent 4
-            adb shell input tap 820 1460
-            sleep 3
-            adb exec-out screencap -p > 131-red-player-real-speed.png
-            adb shell input keyevent 4
-            adb shell input tap 190 1460
-            sleep 3
-            adb exec-out screencap -p > 131-red-player-real-file-picker.png
-            adb logcat -d > 131-red-player-logcat.txt
-      - uses: actions/upload-artifact@v4
+            mkdir -p proof/screenshots proof/reports
+            adb wait-for-device
+            until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 2; done
+            adb shell input keyevent 82
+            adb logcat -c
+            set +e
+            gradle :app:connectedDebugAndroidTest --stacktrace
+            TEST_STATUS=$?
+            set -e
+            adb pull /sdcard/Android/data/com.mr131.redplayer/files/Pictures/screenshots proof/screenshots || true
+            cp -R app/build/reports/androidTests proof/reports/ || true
+            adb shell uiautomator dump /sdcard/current-window.xml || true
+            adb pull /sdcard/current-window.xml proof/ || true
+            adb logcat -d -v threadtime > proof/logcat.txt
+            adb shell dumpsys activity activities > proof/activities.txt
+            set +e
+            python tools/validate_screenshots.py proof/screenshots --required \
+              01-home.png 02-settings.png 03-more-menu.png 04-search.png \
+              05-playback-speed.png 06-system-video-picker.png
+            VALIDATION_STATUS=$?
+            set -e
+            if grep -Eq 'FATAL EXCEPTION.*com\.mr131\.redplayer|ANR in com\.mr131\.redplayer' proof/logcat.txt; then
+              echo 'Red Player crashed or stopped responding' >&2
+              exit 20
+            fi
+            test "$TEST_STATUS" -eq 0
+            test "$VALIDATION_STATUS" -eq 0
+      - name: Upload APK, screenshots, UI tree, logs, and test report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: 131-Red-Player-Real-Screenshot
+          name: android-apk-screenshots-and-logs
           path: |
-            131-red-player-real-*.png
-            131-red-player-logcat.txt
+            app/build/outputs/apk/debug/*.apk
+            proof/
           if-no-files-found: error
+      - name: Fail an unsuccessful visual test
+        if: steps.visual_test.outcome == 'failure'
+        run: exit 1
