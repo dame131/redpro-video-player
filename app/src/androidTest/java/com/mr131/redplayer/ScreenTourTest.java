@@ -29,7 +29,6 @@ import java.io.IOException;
 @RunWith(AndroidJUnit4.class)
 public final class ScreenTourTest {
     private static final String PACKAGE = "com.mr131.redplayer";
-    private static final long START_TIMEOUT_MS = 45_000;
     private static final long SCREEN_TIMEOUT_MS = 15_000;
 
     private UiDevice device;
@@ -40,27 +39,12 @@ public final class ScreenTourTest {
     public void launchRealApp() {
         device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        dismissPlatformErrorDialog();
         homeScenario = ActivityScenario.launch(MainActivity.class);
-        dismissPlatformErrorDialog();
-        assertTrue("Home screen did not become ready",
-                device.wait(Until.hasObject(By.desc("131 Red Player Home Ready")), START_TIMEOUT_MS));
+        homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
+                "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
         device.waitForIdle();
         output = new File(target.getFilesDir(), "screenshots");
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
-    }
-
-    private void dismissPlatformErrorDialog() {
-        for (int attempt = 0; attempt < 3; attempt++) {
-            UiObject2 wait = device.wait(Until.findObject(By.res("android", "aerr_wait")), 1_000);
-            if (wait == null) return;
-            try {
-                wait.click();
-            } catch (StaleObjectException ignored) {
-                return;
-            }
-            device.waitForIdle();
-        }
     }
 
     @Test
