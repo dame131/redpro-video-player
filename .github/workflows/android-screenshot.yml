@@ -40,35 +40,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            mkdir -p proof/screenshots proof/reports
-            adb wait-for-device
-            until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 2; done
-            adb shell input keyevent 82
-            adb logcat -c
-            set +e
-            gradle :app:connectedDebugAndroidTest --stacktrace
-            TEST_STATUS=$?
-            set -e
-            adb pull /sdcard/Android/data/com.mr131.redplayer/files/Pictures/screenshots proof/screenshots || true
-            cp -R app/build/reports/androidTests proof/reports/ || true
-            adb shell uiautomator dump /sdcard/current-window.xml || true
-            adb pull /sdcard/current-window.xml proof/ || true
-            adb logcat -d -v threadtime > proof/logcat.txt
-            adb shell dumpsys activity activities > proof/activities.txt
-            set +e
-            python tools/validate_screenshots.py proof/screenshots --required \
-              01-home.png 02-settings.png 03-more-menu.png 04-private-vault.png \
-              05-search.png 06-playback-speed.png 07-network-stream.png 08-cloud-import.png \
-              09-video-library.png 10-system-video-picker.png 11-screen-08-subtitle-downloader.png \
-              12-screen-12-technical-inspector.png 13-screen-18-history-recovery.png
-            VALIDATION_STATUS=$?
-            set -e
-            if grep -Eq 'FATAL EXCEPTION.*com\.mr131\.redplayer|ANR in com\.mr131\.redplayer' proof/logcat.txt; then
-              echo 'Red Player crashed or stopped responding' >&2
-              exit 20
-            fi
-            test "$TEST_STATUS" -eq 0
-            test "$VALIDATION_STATUS" -eq 0
+            bash tools/run_visual_test.sh
       - name: Upload APK, screenshots, UI tree, logs, and test report
         if: always()
         uses: actions/upload-artifact@v4

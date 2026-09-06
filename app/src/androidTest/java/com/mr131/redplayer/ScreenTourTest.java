@@ -10,6 +10,7 @@ import android.graphics.Rect;
 import android.os.Environment;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.core.app.ActivityScenario;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
@@ -31,17 +32,15 @@ public final class ScreenTourTest {
 
     private UiDevice device;
     private File output;
+    private ActivityScenario<MainActivity> homeScenario;
 
     @Before
     public void launchRealApp() {
         device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        Intent launch = target.getPackageManager().getLaunchIntentForPackage(PACKAGE);
-        assertNotNull("No launcher activity for " + PACKAGE, launch);
-        launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-        target.startActivity(launch);
+        homeScenario = ActivityScenario.launch(MainActivity.class);
         assertTrue("Home screen did not become ready",
-                device.wait(Until.hasObject(By.res(PACKAGE, "root")), START_TIMEOUT_MS));
+                device.wait(Until.hasObject(By.desc("131 Red Player Home Ready")), START_TIMEOUT_MS));
         device.waitForIdle();
         output = new File(target.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "screenshots");
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
@@ -84,10 +83,25 @@ public final class ScreenTourTest {
         capture("12-screen-12-technical-inspector", By.desc("Technical Inspector Screen 12"), true);
         startScreen(HistoryActivity.class);
         capture("13-screen-18-history-recovery", By.desc("History Screen 18"), true);
+        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home restart");
+        clickResource("moreButton"); waitFor(By.text("Equalizer & Bass"), "equalizer menu").click();
+        capture("14-equalizer-bass", By.text("Equalizer & Bass Boost"), true); device.pressBack();
+        clickResource("moreButton"); waitFor(By.text("Sleep timer"), "sleep timer menu").click();
+        capture("15-sleep-timer", By.text("Sleep timer"), true); device.pressBack();
+        clickResource("settingsButton"); waitFor(By.text("Software decoder"), "decoder setting").click();
+        capture("16-decoder-settings", By.text("Software decoder"), true); device.pressBack();
+        startScreen(VaultActivity.class); waitFor(By.desc("Private Vault"), "vault"); waitFor(By.text("CREATE VAULT PIN"), "create PIN").click();
+        capture("17-vault-pin", By.text("Create vault PIN"), true);
+        startVideoHome(); waitFor(By.desc("131 Red Player Home Ready"), "video home"); clickResource("subtitleButton");
+        capture("18-subtitle-choices", By.text("Download matching subtitles"), true);
     }
 
     private void startScreen(Class<?> screen) {
         Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
+    }
+
+    private void startVideoHome() {
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://example.com/test.mp4"),target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
     }
 
     private void clickResource(String id) {

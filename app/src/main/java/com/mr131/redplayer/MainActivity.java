@@ -115,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        findViewById(R.id.root).setContentDescription("131 Red Player Home Ready");
         prefs = getSharedPreferences("red_player", MODE_PRIVATE);
         playerView = findViewById(R.id.playerView);
         titleText = findViewById(R.id.titleText);
@@ -133,7 +134,7 @@ public class MainActivity extends AppCompatActivity {
             else toast("Playback service could not start");
             return;
         }
-        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); setupCast(); handleIncomingVideo(getIntent());
+        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());
     }
 
     private void wireButtons() {

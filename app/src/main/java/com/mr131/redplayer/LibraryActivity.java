@@ -96,7 +96,11 @@ public final class LibraryActivity extends AppCompatActivity {
     }
 
     private void loadVideos() {
-        allVideos.clear();
+        new Thread(() -> scanVideos()).start();
+    }
+
+    private void scanVideos() {
+        ArrayList<VideoEntry> scanned = new ArrayList<>();
         String[] columns = {MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
                 MediaStore.Video.Media.BUCKET_DISPLAY_NAME, MediaStore.Video.Media.DURATION,
                 MediaStore.Video.Media.SIZE};
@@ -109,11 +113,11 @@ public final class LibraryActivity extends AppCompatActivity {
                 long duration = cursor.getLong(3);
                 long size = cursor.getLong(4);
                 Uri uri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
-                allVideos.add(new VideoEntry(uri, name == null ? "Video" : name,
+                scanned.add(new VideoEntry(uri, name == null ? "Video" : name,
                         folder == null ? "Phone" : folder, duration, size));
             }
         }
-        filter("");
+        runOnUiThread(() -> { allVideos.clear(); allVideos.addAll(scanned); filter(""); });
     }
 
     private void filter(String query) {
