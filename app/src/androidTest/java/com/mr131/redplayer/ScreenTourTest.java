@@ -3,6 +3,10 @@ package com.mr131.redplayer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.scrollTo;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import android.content.Context;
 import android.content.Intent;
@@ -64,7 +68,7 @@ public final class ScreenTourTest {
         clickResource("searchButton");
         capture("05-search", By.text("Search videos"), true);
         device.pressBack();
-        clickResource("speedButton");
+        clickScrollableResource(R.id.speedButton);
         capture("06-playback-speed", By.text("Playback speed"), true);
         device.pressBack();
         clickResource("networkButton");
@@ -93,7 +97,7 @@ public final class ScreenTourTest {
         capture("16-decoder-settings", By.text("Software decoder"), true); device.pressBack();
         startScreen(VaultActivity.class); waitFor(By.desc("Private Vault"), "vault"); click(By.text("CREATE VAULT PIN"), "create PIN");
         capture("17-vault-pin", By.text("Create vault PIN"), true);
-        startVideoHome(); waitFor(By.desc("131 Red Player Home Ready"), "video home"); clickResource("subtitleButton");
+        startVideoHome(); waitFor(By.desc("131 Red Player Home Ready"), "video home"); clickScrollableResource(R.id.subtitleButton);
         capture("18-subtitle-choices", By.text("Download matching subtitles"), true);
     }
 
@@ -107,6 +111,11 @@ public final class ScreenTourTest {
 
     private void clickResource(String id) {
         click(By.res(PACKAGE, id), id);
+    }
+
+    private void clickScrollableResource(int id) {
+        onView(withId(id)).perform(scrollTo(), click());
+        device.waitForIdle();
     }
 
     private void click(BySelector selector, String label) {
