@@ -45,6 +45,7 @@ import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.PlayerView;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executor;
@@ -171,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
         MediaItem.SubtitleConfiguration sub = new MediaItem.SubtitleConfiguration.Builder(uri)
                 .setMimeType(mime).setLanguage("en").setSelectionFlags(C.SELECTION_FLAG_DEFAULT).build();
         MediaItem item = new MediaItem.Builder().setUri(videos.get(current))
-                .setSubtitleConfigurations(List.of(sub)).setTag(names.get(current)).build();
+                .setSubtitleConfigurations(Collections.singletonList(sub)).setTag(names.get(current)).build();
         long pos = player.getCurrentPosition();
         player.replaceMediaItem(current, item);
         player.seekTo(current, pos);
@@ -316,7 +317,7 @@ public class MainActivity extends AppCompatActivity {
     private long savedPosition(Uri uri){return prefs.getLong("pos:"+uri,0);}
     private void savePosition(){if(current>=0&&current<videos.size())prefs.edit().putLong("pos:"+videos.get(current),player.getCurrentPosition()).apply();}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_SHORT).show();}
-    private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(List.of(intent.getData()));}
+    private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(Collections.singletonList(intent.getData()));}
 
     @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);}
     @Override protected void onStop(){super.onStop();if(!isInPictureInPictureMode())savePosition();}
