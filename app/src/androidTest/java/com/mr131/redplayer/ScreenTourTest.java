@@ -67,10 +67,16 @@ public final class ScreenTourTest {
         clickResource("speedButton");
         capture("06-playback-speed", By.text("Playback speed"), true);
         device.pressBack();
+        clickResource("networkButton");
+        capture("07-network-stream", By.text("Open Network Stream"), true);
+        device.pressBack();
+        clickResource("cloudButton");
+        capture("08-cloud-import", By.desc("Cloud Import Screen 17"), true);
+        device.pressBack();
         clickResource("openButton");
-        capture("07-video-library", By.desc("Video Library"), true);
+        capture("09-video-library", By.desc("Video Library"), true);
         waitFor(By.text("BROWSE FILES"), "Browse files").click();
-        capture("08-system-video-picker", By.pkg("com.google.android.documentsui"), false);
+        capture("10-system-video-picker", By.pkg("com.google.android.documentsui"), false);
     }
 
     private void clickResource(String id) {

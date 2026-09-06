@@ -2,7 +2,7 @@ plugins { id 'com.android.application' }
 android {
  namespace 'com.mr131.redplayer'
  compileSdk 36
- defaultConfig { applicationId 'com.mr131.redplayer'; minSdk 26; targetSdk 36; versionCode 3; versionName '1.2.0'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
+ defaultConfig { applicationId 'com.mr131.redplayer'; minSdk 26; targetSdk 36; versionCode 4; versionName '1.3.0'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
  buildFeatures { buildConfig true }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
@@ -10,8 +10,13 @@ dependencies {
  implementation 'androidx.appcompat:appcompat:1.7.1'
  implementation 'androidx.activity:activity:1.11.0'
  implementation 'androidx.media3:media3-exoplayer:1.10.0'
+ implementation 'androidx.media3:media3-exoplayer-hls:1.10.0'
+ implementation 'androidx.media3:media3-exoplayer-rtsp:1.10.0'
  implementation 'androidx.media3:media3-ui:1.10.0'
  implementation 'androidx.media3:media3-session:1.10.0'
+ implementation 'androidx.media3:media3-cast:1.10.0'
+ implementation 'com.google.android.gms:play-services-cast-framework:22.1.0'
+ implementation 'androidx.mediarouter:mediarouter:1.8.1'
  implementation 'androidx.biometric:biometric:1.1.0'
  implementation 'com.google.android.material:material:1.13.0'
  androidTestImplementation 'androidx.test:runner:1.6.2'
