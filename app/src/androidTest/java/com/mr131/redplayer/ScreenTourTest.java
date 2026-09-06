@@ -148,7 +148,14 @@ public final class ScreenTourTest {
         long deadline = android.os.SystemClock.uptimeMillis() + 20_000;
         while (!PACKAGE.equals(device.getCurrentPackageName())
                 && android.os.SystemClock.uptimeMillis() < deadline) {
-            if ("android".equals(device.getCurrentPackageName())) device.pressBack();
+            if ("android".equals(device.getCurrentPackageName())) {
+                UiObject2 wait = device.findObject(By.res("android", "aerr_wait"));
+                try {
+                    if (wait != null) wait.click(); else device.pressBack();
+                } catch (StaleObjectException ignored) {
+                    // The platform refreshed the dialog; reacquire it on the next pass.
+                }
+            }
             android.os.SystemClock.sleep(500);
         }
         assertEquals("Wrong foreground app for " + screen, PACKAGE, device.getCurrentPackageName());
