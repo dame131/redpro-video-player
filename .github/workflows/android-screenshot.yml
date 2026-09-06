@@ -1,0 +1,46 @@
+name: Capture Real Android Screen
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/android-screenshot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Build app
+        run: gradle :app:assembleDebug
+      - name: Launch app and capture exact screen
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_7
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.mr131.redplayer
+            adb shell am start -n com.mr131.redplayer/.MainActivity
+            sleep 5
+            adb exec-out screencap -p > 131-red-player-real-home.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 131-Red-Player-Real-Screenshot
+          path: 131-red-player-real-home.png
+          if-no-files-found: error
