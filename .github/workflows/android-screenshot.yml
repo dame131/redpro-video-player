@@ -40,11 +40,30 @@ jobs:
             adb shell am start -n com.mr131.redplayer/.MainActivity
             sleep 45
             adb exec-out screencap -p > 131-red-player-real-home.png
+            adb shell input tap 950 1715
+            sleep 3
+            adb exec-out screencap -p > 131-red-player-real-settings.png
+            adb shell input keyevent 4
+            adb shell input tap 1000 135
+            sleep 3
+            adb exec-out screencap -p > 131-red-player-real-more.png
+            adb shell input keyevent 4
+            adb shell input tap 865 135
+            sleep 3
+            adb exec-out screencap -p > 131-red-player-real-search.png
+            adb shell input keyevent 4
+            adb shell input tap 820 1460
+            sleep 3
+            adb exec-out screencap -p > 131-red-player-real-speed.png
+            adb shell input keyevent 4
+            adb shell input tap 190 1460
+            sleep 3
+            adb exec-out screencap -p > 131-red-player-real-file-picker.png
             adb logcat -d > 131-red-player-logcat.txt
       - uses: actions/upload-artifact@v4
         with:
           name: 131-Red-Player-Real-Screenshot
           path: |
-            131-red-player-real-home.png
+            131-red-player-real-*.png
             131-red-player-logcat.txt
           if-no-files-found: error
