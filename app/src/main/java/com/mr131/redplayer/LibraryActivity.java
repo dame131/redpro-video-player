@@ -70,7 +70,7 @@ public final class LibraryActivity extends AppCompatActivity {
         root.addView(search, new LinearLayout.LayoutParams(-1, dp(58)));
 
         Button browse = new Button(this);
-        browse.setText("BROWSE FILES"); browse.setTextColor(Color.WHITE); browse.setBackgroundColor(Color.rgb(205, 20, 35));
+        browse.setText("BROWSE FILES"); browse.setTextColor(Color.WHITE); browse.setBackgroundColor(getColor(R.color.red_player));
         browse.setOnClickListener(v -> filePicker.launch(new String[]{"video/*"}));
         root.addView(browse, new LinearLayout.LayoutParams(-1, dp(48)));
 

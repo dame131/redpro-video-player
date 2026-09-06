@@ -1,6 +1,6 @@
 package com.mr131.redplayer;
 
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.Intent;
@@ -18,11 +18,12 @@ import android.util.Rational;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ContextThemeWrapper;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
+import androidx.appcompat.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -368,11 +369,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void showSearch() {
         EditText input = new EditText(this); input.setHint("Video name");
+        input.setTextColor(android.graphics.Color.WHITE); input.setHintTextColor(android.graphics.Color.LTGRAY); input.setBackgroundColor(getColor(R.color.carbon)); input.setPadding(24,20,24,20);
         new AlertDialog.Builder(this).setTitle("Search videos").setView(input).setPositiveButton("Search",(d,w)->showPlaylist(input.getText().toString())).setNegativeButton("Cancel",null).show();
     }
 
     private void showMore(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
+        PopupMenu menu = new PopupMenu(new ContextThemeWrapper(this, R.style.ThemeOverlay_RedPlayer_Popup), anchor);
         menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Download subtitles"); menu.getMenu().add("History & recovery"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
@@ -405,6 +407,7 @@ public class MainActivity extends AppCompatActivity {
         android.widget.SeekBar eq=new android.widget.SeekBar(this);eq.setMax(100);eq.setProgress(prefs.getInt("eq_level",50));panel.addView(eq);
         TextView bassLabel=new TextView(this);bassLabel.setText("Bass boost");bassLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(bassLabel);
         android.widget.SeekBar bass=new android.widget.SeekBar(this);bass.setMax(100);bass.setProgress(prefs.getInt("bass",50));panel.addView(bass);
+        android.content.res.ColorStateList red=android.content.res.ColorStateList.valueOf(getColor(R.color.red_player)); eq.setProgressTintList(red);eq.setThumbTintList(red);bass.setProgressTintList(red);bass.setThumbTintList(red);
         new AlertDialog.Builder(this).setTitle("Equalizer & Bass Boost").setView(panel).setNegativeButton("Off",(d,w)->{prefs.edit().putBoolean("eq_on",false).apply();PlaybackService.setEqualizer(false,eq.getProgress(),bass.getProgress());}).setPositiveButton("Save",(d,w)->{prefs.edit().putBoolean("eq_on",true).putInt("eq_level",eq.getProgress()).putInt("bass",bass.getProgress()).apply();PlaybackService.setEqualizer(true,eq.getProgress(),bass.getProgress());}).show();
     }
 

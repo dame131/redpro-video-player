@@ -1,6 +1,6 @@
 package com.mr131.redplayer;
 
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
@@ -68,7 +68,7 @@ public final class VaultActivity extends AppCompatActivity {
     }
 
     private void showPin() {
-        EditText input=new EditText(this); input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD); input.setHint("4–8 digit PIN");
+        EditText input=new EditText(this); input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD); input.setHint("4–8 digit PIN");input.setTextColor(Color.WHITE);input.setHintTextColor(Color.LTGRAY);input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));
         boolean creating=!hasPin();
         new AlertDialog.Builder(this).setTitle(creating?"Create vault PIN":"Enter vault PIN").setView(input).setNegativeButton("Cancel",null).setPositiveButton(creating?"Save":"Unlock",(d,w)->{
             String pin=input.getText().toString();
@@ -96,7 +96,7 @@ public final class VaultActivity extends AppCompatActivity {
     private boolean hasPin(){return !getPreferences(MODE_PRIVATE).getString("pin","").isEmpty();}
     private String hash(String value){try{byte[] b=MessageDigest.getInstance("SHA-256").digest((getPackageName()+value).getBytes(StandardCharsets.UTF_8));StringBuilder s=new StringBuilder();for(byte x:b)s.append(String.format("%02x",x));return s.toString();}catch(Exception e){return value;}}
     private String displayName(Uri uri){try(android.database.Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst())return c.getString(0);}catch(Exception ignored){}return "private-video";}
-    private Button button(String label){Button b=new Button(this);b.setText(label);b.setTextColor(Color.WHITE);b.setBackgroundColor(Color.rgb(205,20,35));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(52));p.setMargins(0,dp(12),0,0);b.setLayoutParams(p);return b;}
+    private Button button(String label){Button b=new Button(this);b.setText(label);b.setTextColor(Color.WHITE);b.setBackgroundColor(getColor(R.color.red_player));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(52));p.setMargins(0,dp(12),0,0);b.setLayoutParams(p);return b;}
     private TextView text(String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setGravity(Gravity.CENTER);t.setPadding(0,dp(8),0,dp(8));return t;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
