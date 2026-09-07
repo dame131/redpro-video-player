@@ -205,6 +205,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void wirePlayer() {
         player.addListener(new Player.Listener() {
+            @Override public void onPlaybackStateChanged(int state) {
+                if(state==Player.STATE_READY) playerView.setContentDescription("Video Ready");
+            }
             @Override public void onIsPlayingChanged(boolean isPlaying) {
                 if (!isPlaying) savePosition();
             }

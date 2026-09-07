@@ -153,6 +153,7 @@ public final class ScreenTourTest {
                 activity.findViewById(R.id.root).isShown()));
         ensureAppForeground("01-home");
         waitFor(By.text("demo.mp4"), "demo video title");
+        waitFor(By.desc("Video Ready"), "first playable video frame");
         device.waitForIdle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
     }
