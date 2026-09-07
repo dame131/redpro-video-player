@@ -2,9 +2,11 @@ package com.mr131.redplayer;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.animation.AccelerateDecelerateInterpolator;
@@ -52,6 +54,36 @@ public final class ChromePulseTextView extends AppCompatTextView {
             invalidate();
         });
         pulse.start();
+    }
+
+    @Override protected void onDraw(Canvas canvas) {
+        Shader face = getPaint().getShader();
+        int faceColor = getCurrentTextColor();
+        Paint.Style faceStyle = getPaint().getStyle();
+
+        getPaint().setShader(null);
+        getPaint().clearShadowLayer();
+        getPaint().setStyle(Paint.Style.FILL);
+        for (int layer = 6; layer >= 1; layer--) {
+            int red = 38 + layer * 7;
+            getPaint().setColor(Color.rgb(red, 3, 2));
+            canvas.save();
+            canvas.translate(layer * .85f, layer * .85f);
+            super.onDraw(canvas);
+            canvas.restore();
+        }
+
+        getPaint().setShader(null);
+        getPaint().setColor(Color.rgb(12, 12, 14));
+        getPaint().setStyle(Paint.Style.STROKE);
+        getPaint().setStrokeWidth(3.2f);
+        super.onDraw(canvas);
+
+        getPaint().setStyle(faceStyle);
+        getPaint().setColor(faceColor);
+        getPaint().setShader(face);
+        getPaint().setShadowLayer(4.5f, 1.5f, 2.5f, Color.rgb(95, 0, 0));
+        super.onDraw(canvas);
     }
 
     @Override protected void onDetachedFromWindow() {
