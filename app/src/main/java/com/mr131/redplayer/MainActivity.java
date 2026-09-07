@@ -140,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void wireButtons() {
-        for(int id:chromeIconIds){View icon=findViewById(id);if(icon!=null)icon.setBackground(new ChromePulseDrawable(false));}
+        for(int id:chromeIconIds){View icon=findViewById(id);if(icon!=null)icon.setBackgroundColor(android.graphics.Color.TRANSPARENT);}
         bindAnimated(R.id.openButton,v -> libraryLauncher.launch(new Intent(this, LibraryActivity.class)));
         bindAnimated(R.id.networkButton,v -> showNetworkStream());
         bindAnimated(R.id.cloudButton,v -> cloudLauncher.launch(new Intent(this, CloudImportActivity.class)));
@@ -165,20 +165,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void animateIcon(View icon) {
-        if(icon.getBackground() instanceof ChromePulseDrawable)((ChromePulseDrawable)icon.getBackground()).pulse();
+        if(icon instanceof ChromeIconButton)((ChromeIconButton)icon).pulse();
         icon.animate().cancel();icon.animate().scaleX(.72f).scaleY(.72f).rotationBy(18f).alpha(.6f).setDuration(90).withEndAction(()->icon.animate().scaleX(1.12f).scaleY(1.12f).rotation(0f).alpha(1f).setDuration(120).withEndAction(()->icon.animate().scaleX(1f).scaleY(1f).setDuration(100).start()).start()).start();
     }
 
     private void setChromeActive(View icon, boolean active) {
         icon.setActivated(active);
-        if(icon.getBackground() instanceof ChromePulseDrawable)((ChromePulseDrawable)icon.getBackground()).setActive(active);
+        if(icon instanceof ChromeIconButton)((ChromeIconButton)icon).setChromeActive(active);
     }
 
     private void startIconEntrance() {
         int[] ids={R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
         for(int i=0;i<ids.length;i++){View icon=findViewById(ids[i]);icon.setAlpha(0f);icon.setScaleX(.55f);icon.setScaleY(.55f);icon.setTranslationY(14f);icon.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setStartDelay(i*22L).setDuration(260).start();}
         setChromeActive(findViewById(R.id.openButton),true);
-        handler.postDelayed(()->{for(int i=0;i<chromeIconIds.length;i++){final View icon=findViewById(chromeIconIds[i]);handler.postDelayed(()->{if(icon!=null&&icon.getBackground() instanceof ChromePulseDrawable)((ChromePulseDrawable)icon.getBackground()).pulse();},i*70L);}},500);
+        handler.postDelayed(()->{for(int i=0;i<chromeIconIds.length;i++){final View icon=findViewById(chromeIconIds[i]);handler.postDelayed(()->{if(icon instanceof ChromeIconButton)((ChromeIconButton)icon).pulse();},i*70L);}},500);
     }
 
     private void showSubtitleChoices(){new AlertDialog.Builder(this).setTitle("Subtitles").setItems(new String[]{"Download matching subtitles","Load SRT or VTT file","Adjust subtitle timing"},(d,w)->{if(w==0)downloadedSubtitleLauncher.launch(new Intent(this,SubtitleDownloadActivity.class).putExtra("video_name",names.get(current)));if(w==1)subtitlePicker.launch(new String[]{"text/*","application/x-subrip","text/vtt"});if(w==2)showSubtitleTiming();}).show();}
