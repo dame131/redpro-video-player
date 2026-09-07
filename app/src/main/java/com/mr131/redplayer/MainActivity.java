@@ -20,7 +20,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ContextThemeWrapper;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import androidx.appcompat.widget.PopupMenu;
@@ -123,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
         bottomBar = findViewById(R.id.bottomBar);
         gestureOverlay = findViewById(R.id.gestureOverlay);
         wireButtons();
+        startIconEntrance();
         wireGestures();
         startService(new Intent(this, PlaybackService.class));
         connectPlayer(0);
@@ -139,23 +139,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void wireButtons() {
-        findViewById(R.id.openButton).setOnClickListener(v -> libraryLauncher.launch(new Intent(this, LibraryActivity.class)));
-        findViewById(R.id.networkButton).setOnClickListener(v -> showNetworkStream());
-        findViewById(R.id.cloudButton).setOnClickListener(v -> cloudLauncher.launch(new Intent(this, CloudImportActivity.class)));
-        findViewById(R.id.decoderButton).setOnClickListener(this::toggleDecoder);
-        findViewById(R.id.subtitleButton).setOnClickListener(v -> {if(current<0)toast("Open a video first");else showSubtitleChoices();});
-        findViewById(R.id.speedButton).setOnClickListener(this::showSpeed);
-        findViewById(R.id.fitButton).setOnClickListener(v -> changeFit());
-        findViewById(R.id.abButton).setOnClickListener(this::setAB);
-        findViewById(R.id.pipButton).setOnClickListener(v -> enterPip());
-        findViewById(R.id.lockButton).setOnClickListener(v -> toggleLock());
-        findViewById(R.id.infoButton).setOnClickListener(v -> showInfo());
-        findViewById(R.id.previousButton).setOnClickListener(v -> playIndex(current - 1, true));
-        findViewById(R.id.nextButton).setOnClickListener(v -> playIndex(current + 1, true));
-        findViewById(R.id.playlistButton).setOnClickListener(v -> showPlaylist(""));
-        findViewById(R.id.settingsButton).setOnClickListener(this::showSettings);
-        findViewById(R.id.searchButton).setOnClickListener(v -> showSearch());
-        findViewById(R.id.moreButton).setOnClickListener(this::showMore);
+        bindAnimated(R.id.openButton,v -> libraryLauncher.launch(new Intent(this, LibraryActivity.class)));
+        bindAnimated(R.id.networkButton,v -> showNetworkStream());
+        bindAnimated(R.id.cloudButton,v -> cloudLauncher.launch(new Intent(this, CloudImportActivity.class)));
+        bindAnimated(R.id.decoderButton,this::toggleDecoder);
+        bindAnimated(R.id.subtitleButton,v -> {if(current<0)toast("Open a video first");else showSubtitleChoices();});
+        bindAnimated(R.id.speedButton,this::showSpeed);
+        bindAnimated(R.id.fitButton,v -> changeFit());
+        bindAnimated(R.id.abButton,this::setAB);
+        bindAnimated(R.id.pipButton,v -> enterPip());
+        bindAnimated(R.id.lockButton,v -> toggleLock());
+        bindAnimated(R.id.infoButton,v -> showInfo());
+        bindAnimated(R.id.previousButton,v -> playIndex(current - 1, true));
+        bindAnimated(R.id.nextButton,v -> playIndex(current + 1, true));
+        bindAnimated(R.id.playlistButton,v -> showPlaylist(""));
+        bindAnimated(R.id.settingsButton,this::showSettings);
+        bindAnimated(R.id.searchButton,v -> showSearch());
+        bindAnimated(R.id.moreButton,this::showMore);
+    }
+
+    private void bindAnimated(int id, View.OnClickListener action) {
+        View icon=findViewById(id);icon.setOnClickListener(v->{animateIcon(v);action.onClick(v);});
+    }
+
+    private void animateIcon(View icon) {
+        icon.animate().cancel();icon.animate().scaleX(.72f).scaleY(.72f).rotationBy(18f).alpha(.6f).setDuration(90).withEndAction(()->icon.animate().scaleX(1.12f).scaleY(1.12f).rotation(0f).alpha(1f).setDuration(120).withEndAction(()->icon.animate().scaleX(1f).scaleY(1f).setDuration(100).start()).start()).start();
+    }
+
+    private void startIconEntrance() {
+        int[] ids={R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
+        for(int i=0;i<ids.length;i++){View icon=findViewById(ids[i]);icon.setAlpha(0f);icon.setScaleX(.55f);icon.setScaleY(.55f);icon.setTranslationY(14f);icon.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setStartDelay(i*22L).setDuration(260).start();}
+        findViewById(R.id.openButton).setActivated(true);
     }
 
     private void showSubtitleChoices(){new AlertDialog.Builder(this).setTitle("Subtitles").setItems(new String[]{"Download matching subtitles","Load SRT or VTT file","Adjust subtitle timing"},(d,w)->{if(w==0)downloadedSubtitleLauncher.launch(new Intent(this,SubtitleDownloadActivity.class).putExtra("video_name",names.get(current)));if(w==1)subtitlePicker.launch(new String[]{"text/*","application/x-subrip","text/vtt"});if(w==2)showSubtitleTiming();}).show();}
@@ -170,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleDecoder(View view) {
-        softwareDecoder=!softwareDecoder;prefs.edit().putBoolean("software_decoder",softwareDecoder).apply();((Button)view).setText(softwareDecoder?"SW":"HW");
+        softwareDecoder=!softwareDecoder;prefs.edit().putBoolean("software_decoder",softwareDecoder).apply();view.setActivated(softwareDecoder);view.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");
         PlaybackService.setSoftwareDecoder(softwareDecoder);playerView.setPlayer(null);connectPlayer(0);toast((softwareDecoder?"Software":"Hardware")+" decoder selected");
     }
 
@@ -273,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
         final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×"};
         final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f};
         new AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(labels, indexOf(values, speed), (d, which) -> {
-            speed = values[which]; player.setPlaybackSpeed(speed); prefs.edit().putFloat("speed", speed).apply(); ((Button) anchor).setText("SPEED " + labels[which]); d.dismiss();
+            speed = values[which]; player.setPlaybackSpeed(speed); prefs.edit().putFloat("speed", speed).apply(); anchor.setContentDescription("Playback speed " + labels[which]); anchor.setActivated(speed!=1f); d.dismiss();
         }).show();
     }
 
@@ -288,11 +302,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setAB(View view) {
-        Button button = (Button) view;
         if (current < 0) { toast("Open a video first"); return; }
-        if (pointA == C.TIME_UNSET) { pointA = player.getCurrentPosition(); button.setText("SET B"); toast("Point A saved"); }
-        else if (pointB == C.TIME_UNSET) { pointB = Math.max(pointA + 250, player.getCurrentPosition()); button.setText("A–B ON"); toast("A–B repeat on"); }
-        else { pointA = pointB = C.TIME_UNSET; button.setText("A–B"); toast("A–B repeat off"); }
+        if (pointA == C.TIME_UNSET) { pointA = player.getCurrentPosition(); view.setContentDescription("Set repeat point B");view.setActivated(true); toast("Point A saved"); }
+        else if (pointB == C.TIME_UNSET) { pointB = Math.max(pointA + 250, player.getCurrentPosition()); view.setContentDescription("A B repeat on");view.setActivated(true); toast("A–B repeat on"); }
+        else { pointA = pointB = C.TIME_UNSET; view.setContentDescription("A B repeat");view.setActivated(false); toast("A–B repeat off"); }
     }
 
     private void enterPip() {
@@ -457,8 +470,8 @@ public class MainActivity extends AppCompatActivity {
         player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));
         PlaybackService.setEqualizer(prefs.getBoolean("eq_on",false),prefs.getInt("eq_level",50),prefs.getInt("bass",50));
         applyKeepAwake(prefs.getBoolean("keep_awake", false));
-        ((Button)findViewById(R.id.speedButton)).setText("SPEED " + speed + "×");
-        ((Button)findViewById(R.id.decoderButton)).setText(softwareDecoder?"SW":"HW");
+        View speedIcon=findViewById(R.id.speedButton);speedIcon.setContentDescription("Playback speed "+speed+" times");speedIcon.setActivated(speed!=1f);
+        View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");decoderIcon.setActivated(softwareDecoder);
     }
 
     private void applyKeepAwake(boolean on) {

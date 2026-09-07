@@ -76,7 +76,7 @@ public final class ScreenTourTest {
         clickScrollableResource(R.id.cloudButton);
         capture("08-cloud-import", By.desc("Cloud Import Screen 17"), true);
         device.pressBack();
-        clickScrollableResource(R.id.openButton);
+        clickResource("openButton");
         capture("09-video-library", By.desc("Video Library"), true);
         click(By.text("BROWSE FILES"), "Browse files");
         capture("10-system-video-picker", By.pkg("com.android.documentsui"), false);
