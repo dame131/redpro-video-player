@@ -3,4 +3,5 @@
     <files-path name="vault" path="vault/"/>
     <files-path name="downloaded_subtitles" path="subtitles/"/>
     <cache-path name="subtitles" path="subtitles/"/>
+    <cache-path name="proof_media" path="proof-media/"/>
 </paths>

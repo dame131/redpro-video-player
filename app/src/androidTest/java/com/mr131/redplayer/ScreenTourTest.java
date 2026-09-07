@@ -10,6 +10,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.net.Uri;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.core.app.ActivityScenario;
@@ -20,6 +21,7 @@ import androidx.test.uiautomator.StaleObjectException;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
+import androidx.core.content.FileProvider;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -28,6 +30,7 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 @RunWith(AndroidJUnit4.class)
 public final class ScreenTourTest {
@@ -42,7 +45,8 @@ public final class ScreenTourTest {
     public void launchRealApp() {
         device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        homeScenario = ActivityScenario.launch(MainActivity.class);
+        homeScenario = ActivityScenario.launch(new Intent(Intent.ACTION_VIEW, installDemoVideo(target), MainActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
         device.waitForIdle();
@@ -148,8 +152,15 @@ public final class ScreenTourTest {
         homeScenario.onActivity(activity -> assertTrue("Home root is not visible",
                 activity.findViewById(R.id.root).isShown()));
         ensureAppForeground("01-home");
+        waitFor(By.text("demo.mp4"), "demo video title");
         device.waitForIdle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
+    }
+
+    private Uri installDemoVideo(Context target) {
+        File folder=new File(target.getCacheDir(),"proof-media");assertTrue(folder.isDirectory()||folder.mkdirs());File demo=new File(folder,"demo.mp4");
+        try(InputStream in=InstrumentationRegistry.getInstrumentation().getContext().getAssets().open("demo.mp4");FileOutputStream out=new FileOutputStream(demo)){byte[] buffer=new byte[16384];int read;while((read=in.read(buffer))>0)out.write(buffer,0,read);}catch(IOException error){throw new AssertionError("Could not install demo video",error);}
+        return FileProvider.getUriForFile(target,target.getPackageName()+".files",demo);
     }
 
     private void ensureAppForeground(String screen) {
