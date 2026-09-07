@@ -87,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
     private Uri subtitleUri;
     private long subtitleOffsetMs = 0;
     private boolean softwareDecoder = false;
+    private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(), this::addVideos);
@@ -139,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void wireButtons() {
+        for(int id:chromeIconIds){View icon=findViewById(id);if(icon!=null)icon.setBackground(new ChromePulseDrawable(false));}
         bindAnimated(R.id.openButton,v -> libraryLauncher.launch(new Intent(this, LibraryActivity.class)));
         bindAnimated(R.id.networkButton,v -> showNetworkStream());
         bindAnimated(R.id.cloudButton,v -> cloudLauncher.launch(new Intent(this, CloudImportActivity.class)));
@@ -163,13 +165,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void animateIcon(View icon) {
+        if(icon.getBackground() instanceof ChromePulseDrawable)((ChromePulseDrawable)icon.getBackground()).pulse();
         icon.animate().cancel();icon.animate().scaleX(.72f).scaleY(.72f).rotationBy(18f).alpha(.6f).setDuration(90).withEndAction(()->icon.animate().scaleX(1.12f).scaleY(1.12f).rotation(0f).alpha(1f).setDuration(120).withEndAction(()->icon.animate().scaleX(1f).scaleY(1f).setDuration(100).start()).start()).start();
+    }
+
+    private void setChromeActive(View icon, boolean active) {
+        icon.setActivated(active);
+        if(icon.getBackground() instanceof ChromePulseDrawable)((ChromePulseDrawable)icon.getBackground()).setActive(active);
     }
 
     private void startIconEntrance() {
         int[] ids={R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
         for(int i=0;i<ids.length;i++){View icon=findViewById(ids[i]);icon.setAlpha(0f);icon.setScaleX(.55f);icon.setScaleY(.55f);icon.setTranslationY(14f);icon.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setStartDelay(i*22L).setDuration(260).start();}
-        findViewById(R.id.openButton).setActivated(true);
+        setChromeActive(findViewById(R.id.openButton),true);
+        handler.postDelayed(()->{for(int i=0;i<chromeIconIds.length;i++){final View icon=findViewById(chromeIconIds[i]);handler.postDelayed(()->{if(icon!=null&&icon.getBackground() instanceof ChromePulseDrawable)((ChromePulseDrawable)icon.getBackground()).pulse();},i*70L);}},500);
     }
 
     private void showSubtitleChoices(){new AlertDialog.Builder(this).setTitle("Subtitles").setItems(new String[]{"Download matching subtitles","Load SRT or VTT file","Adjust subtitle timing"},(d,w)->{if(w==0)downloadedSubtitleLauncher.launch(new Intent(this,SubtitleDownloadActivity.class).putExtra("video_name",names.get(current)));if(w==1)subtitlePicker.launch(new String[]{"text/*","application/x-subrip","text/vtt"});if(w==2)showSubtitleTiming();}).show();}
@@ -184,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleDecoder(View view) {
-        softwareDecoder=!softwareDecoder;prefs.edit().putBoolean("software_decoder",softwareDecoder).apply();view.setActivated(softwareDecoder);view.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");
+        softwareDecoder=!softwareDecoder;prefs.edit().putBoolean("software_decoder",softwareDecoder).apply();setChromeActive(view,softwareDecoder);view.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");
         PlaybackService.setSoftwareDecoder(softwareDecoder);playerView.setPlayer(null);connectPlayer(0);toast((softwareDecoder?"Software":"Hardware")+" decoder selected");
     }
 
@@ -290,7 +299,7 @@ public class MainActivity extends AppCompatActivity {
         final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×"};
         final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f};
         new AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(labels, indexOf(values, speed), (d, which) -> {
-            speed = values[which]; player.setPlaybackSpeed(speed); prefs.edit().putFloat("speed", speed).apply(); anchor.setContentDescription("Playback speed " + labels[which]); anchor.setActivated(speed!=1f); d.dismiss();
+            speed = values[which]; player.setPlaybackSpeed(speed); prefs.edit().putFloat("speed", speed).apply(); anchor.setContentDescription("Playback speed " + labels[which]); setChromeActive(anchor,speed!=1f); d.dismiss();
         }).show();
     }
 
@@ -306,9 +315,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void setAB(View view) {
         if (current < 0) { toast("Open a video first"); return; }
-        if (pointA == C.TIME_UNSET) { pointA = player.getCurrentPosition(); view.setContentDescription("Set repeat point B");view.setActivated(true); toast("Point A saved"); }
-        else if (pointB == C.TIME_UNSET) { pointB = Math.max(pointA + 250, player.getCurrentPosition()); view.setContentDescription("A B repeat on");view.setActivated(true); toast("A–B repeat on"); }
-        else { pointA = pointB = C.TIME_UNSET; view.setContentDescription("A B repeat");view.setActivated(false); toast("A–B repeat off"); }
+        if (pointA == C.TIME_UNSET) { pointA = player.getCurrentPosition(); view.setContentDescription("Set repeat point B");setChromeActive(view,true); toast("Point A saved"); }
+        else if (pointB == C.TIME_UNSET) { pointB = Math.max(pointA + 250, player.getCurrentPosition()); view.setContentDescription("A B repeat on");setChromeActive(view,true); toast("A–B repeat on"); }
+        else { pointA = pointB = C.TIME_UNSET; view.setContentDescription("A B repeat");setChromeActive(view,false); toast("A–B repeat off"); }
     }
 
     private void enterPip() {
@@ -473,8 +482,8 @@ public class MainActivity extends AppCompatActivity {
         player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));
         PlaybackService.setEqualizer(prefs.getBoolean("eq_on",false),prefs.getInt("eq_level",50),prefs.getInt("bass",50));
         applyKeepAwake(prefs.getBoolean("keep_awake", false));
-        View speedIcon=findViewById(R.id.speedButton);speedIcon.setContentDescription("Playback speed "+speed+" times");speedIcon.setActivated(speed!=1f);
-        View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");decoderIcon.setActivated(softwareDecoder);
+        View speedIcon=findViewById(R.id.speedButton);speedIcon.setContentDescription("Playback speed "+speed+" times");setChromeActive(speedIcon,speed!=1f);
+        View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");setChromeActive(decoderIcon,softwareDecoder);
     }
 
     private void applyKeepAwake(boolean on) {
