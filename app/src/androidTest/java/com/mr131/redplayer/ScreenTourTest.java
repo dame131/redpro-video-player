@@ -45,7 +45,7 @@ public final class ScreenTourTest {
     public void launchRealApp() {
         device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        homeScenario = ActivityScenario.launch(new Intent(Intent.ACTION_VIEW, installDemoVideo(target), MainActivity.class)
+        homeScenario = ActivityScenario.launch(new Intent(Intent.ACTION_VIEW, installDemoVideo(target), target, MainActivity.class)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
