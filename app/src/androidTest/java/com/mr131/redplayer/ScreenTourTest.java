@@ -57,6 +57,9 @@ public final class ScreenTourTest {
     @Test
     public void captureEveryImplementedScreen() {
         captureHome();
+        clickScrollableResource(R.id.subtitleButton);
+        capture("18-subtitle-choices", By.text("Download matching subtitles"), true);
+        device.pressBack();
         clickResource("settingsButton");
         capture("02-settings", By.text("Settings"), true);
         device.pressBack();
@@ -100,8 +103,6 @@ public final class ScreenTourTest {
         capture("16-decoder-settings", By.text("Software decoder"), true); device.pressBack();
         startScreen(VaultActivity.class); waitFor(By.desc("Private Vault"), "vault"); click(By.text("CREATE VAULT PIN"), "create PIN");
         capture("17-vault-pin", By.text("Create vault PIN"), true);
-        startVideoHome(); waitFor(By.desc("131 Red Player Home Ready"), "video home"); clickResource("subtitleButton");
-        capture("18-subtitle-choices", By.text("Download matching subtitles"), true);
     }
 
     private void startScreen(Class<?> screen) {
