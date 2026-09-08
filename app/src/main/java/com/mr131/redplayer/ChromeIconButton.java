@@ -4,7 +4,12 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.animation.DecelerateInterpolator;
@@ -17,6 +22,11 @@ public final class ChromeIconButton extends AppCompatImageButton {
     private float pulse;
     private boolean active;
     private ValueAnimator animator;
+    private final Paint metalPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+    private final Paint depthPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+    private final Matrix metalMotion=new Matrix();
+    private Bitmap iconMask;
+    private LinearGradient metal;
 
     public ChromeIconButton(Context c) { super(c); prepare(); }
     public ChromeIconButton(Context c, @Nullable AttributeSet a) { super(c,a); prepare(); }
@@ -44,25 +54,35 @@ public final class ChromeIconButton extends AppCompatImageButton {
     @Override protected void onDraw(Canvas canvas) {
         Drawable icon=getDrawable();
         if(icon==null){super.onDraw(canvas);return;}
-        Drawable.Callback callback=icon.getCallback();
-        icon.setCallback(null);
-        int save=canvas.save();
-        canvas.translate(getScrollX(),getScrollY());
-        for(int layer=7;layer>=1;layer--){
-            icon.setColorFilter(Color.rgb(58+layer*7,3,2), PorterDuff.Mode.SRC_IN);
-            canvas.save();canvas.translate(layer*.82f,layer*.82f);icon.draw(canvas);canvas.restore();
+        ensureMask(icon);
+        if(iconMask==null)return;
+
+        depthPaint.setShadowLayer(5f,2f,4f,Color.BLACK);
+        for(int layer=8;layer>=1;layer--){
+            depthPaint.setColor(Color.rgb(58+layer*8,2,2));
+            canvas.drawBitmap(iconMask,layer*.78f,layer*.78f,depthPaint);
         }
-        icon.setColorFilter(Color.rgb(32,33,36),PorterDuff.Mode.SRC_IN);
-        canvas.save();canvas.translate(-1.8f,-1.8f);icon.draw(canvas);canvas.restore();
-        int red=(int)(205*pulse)+(active?35:0);
-        int green=(int)(222*(1f-pulse));
-        int blue=(int)(230*(1f-pulse));
-        icon.setColorFilter(Color.rgb(Math.min(255,215+red/7),green,blue),PorterDuff.Mode.SRC_IN);
-        icon.draw(canvas);
-        icon.setColorFilter(null);
-        icon.setCallback(callback);
-        canvas.restoreToCount(save);
+        depthPaint.clearShadowLayer();
+        depthPaint.setColor(Color.rgb(8,8,10));
+        canvas.drawBitmap(iconMask,-2.1f,0,depthPaint);canvas.drawBitmap(iconMask,2.1f,0,depthPaint);
+        canvas.drawBitmap(iconMask,0,-2.1f,depthPaint);canvas.drawBitmap(iconMask,0,2.1f,depthPaint);
+
+        float travel=(pulse+(active?.28f:0f))*getWidth()*.55f;
+        metalMotion.setTranslate(travel,0f);metal.setLocalMatrix(metalMotion);
+        metalPaint.setShader(metal);
+        canvas.drawBitmap(iconMask,0,0,metalPaint);
     }
+
+    private void ensureMask(Drawable icon){
+        if(iconMask!=null&&iconMask.getWidth()==getWidth()&&iconMask.getHeight()==getHeight())return;
+        if(getWidth()<=0||getHeight()<=0)return;
+        Bitmap colorMask=Bitmap.createBitmap(getWidth(),getHeight(),Bitmap.Config.ARGB_8888);
+        Canvas maskCanvas=new Canvas(colorMask);Drawable.Callback callback=icon.getCallback();icon.setCallback(null);icon.setColorFilter(Color.WHITE,PorterDuff.Mode.SRC_IN);icon.draw(maskCanvas);icon.setColorFilter(null);icon.setCallback(callback);
+        iconMask=colorMask.extractAlpha();colorMask.recycle();
+        metal=new LinearGradient(-getWidth()*.35f,0,getWidth()*.85f,getHeight(),new int[]{Color.rgb(55,57,62),Color.WHITE,Color.rgb(151,156,164),Color.rgb(20,21,24),Color.rgb(245,247,250),Color.rgb(214,10,0),Color.WHITE},new float[]{0f,.14f,.30f,.45f,.60f,.73f,1f},Shader.TileMode.MIRROR);
+    }
+
+    @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){super.onSizeChanged(w,h,oldw,oldh);iconMask=null;metal=null;}
 
     @Override protected void onDetachedFromWindow(){if(animator!=null)animator.cancel();super.onDetachedFromWindow();}
 }
