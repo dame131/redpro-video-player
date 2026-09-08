@@ -70,7 +70,7 @@ public final class ScreenTourTest {
         clickResource("moreButton");
         click(By.text("Private vault"), "Private vault menu item");
         capture("04-private-vault", By.desc("Private Vault"), true);
-        device.pressBack();
+        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home after vault");
         clickResource("searchButton");
         capture("05-search", By.text("Search videos"), true);
         device.pressBack();
