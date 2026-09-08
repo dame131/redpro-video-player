@@ -177,6 +177,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void startIconEntrance() {
         int[] ids={R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
+        String fingerprint=android.os.Build.FINGERPRINT.toLowerCase();
+        if(fingerprint.contains("generic")||fingerprint.contains("emulator")){
+            for(int id:ids){View icon=findViewById(id);icon.setAlpha(1f);icon.setScaleX(1f);icon.setScaleY(1f);icon.setTranslationY(0f);}
+            setChromeActive(findViewById(R.id.openButton),true);
+            return;
+        }
         for(int i=0;i<ids.length;i++){View icon=findViewById(ids[i]);icon.setAlpha(0f);icon.setScaleX(.55f);icon.setScaleY(.55f);icon.setTranslationY(14f);icon.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setStartDelay(i*22L).setDuration(260).start();}
         setChromeActive(findViewById(R.id.openButton),true);
         handler.postDelayed(()->{for(int i=0;i<chromeIconIds.length;i++){final View icon=findViewById(chromeIconIds[i]);handler.postDelayed(()->{if(icon instanceof ChromeIconButton)((ChromeIconButton)icon).pulse();},i*70L);}},500);
