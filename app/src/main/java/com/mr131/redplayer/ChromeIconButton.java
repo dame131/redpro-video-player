@@ -44,6 +44,8 @@ public final class ChromeIconButton extends AppCompatImageButton {
     @Override protected void onDraw(Canvas canvas) {
         Drawable icon=getDrawable();
         if(icon==null){super.onDraw(canvas);return;}
+        Drawable.Callback callback=icon.getCallback();
+        icon.setCallback(null);
         int save=canvas.save();
         canvas.translate(getScrollX(),getScrollY());
         for(int layer=7;layer>=1;layer--){
@@ -58,6 +60,7 @@ public final class ChromeIconButton extends AppCompatImageButton {
         icon.setColorFilter(Color.rgb(Math.min(255,215+red/7),green,blue),PorterDuff.Mode.SRC_IN);
         icon.draw(canvas);
         icon.setColorFilter(null);
+        icon.setCallback(callback);
         canvas.restoreToCount(save);
     }
 
