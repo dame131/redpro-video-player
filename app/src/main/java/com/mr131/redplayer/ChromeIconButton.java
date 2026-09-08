@@ -30,7 +30,7 @@ public final class ChromeIconButton extends AppCompatImageButton {
     public void setChromeActive(boolean value) { active=value; invalidate(); }
 
     public void pulse() {
-        if(!ValueAnimator.areAnimatorsEnabled()){pulse=.35f;invalidate();return;}
+        if(!ValueAnimator.areAnimatorsEnabled()||android.os.Build.FINGERPRINT.contains("generic")){pulse=.35f;invalidate();return;}
         if(animator!=null)animator.cancel();
         animator=ValueAnimator.ofFloat(0f,1f,0f);
         animator.setDuration(620);

@@ -40,7 +40,7 @@ public final class ChromePulseTextView extends AppCompatTextView {
     }
 
     private void startPulse(int width) {
-        if(!ValueAnimator.areAnimatorsEnabled()){chromeMotion.setTranslate(width*.42f,0f);chrome.setLocalMatrix(chromeMotion);invalidate();return;}
+        if(!ValueAnimator.areAnimatorsEnabled()||android.os.Build.FINGERPRINT.contains("generic")){chromeMotion.setTranslate(width*.42f,0f);chrome.setLocalMatrix(chromeMotion);invalidate();return;}
         if (pulse != null) pulse.cancel();
         pulse = ValueAnimator.ofFloat(0f, width * 1.35f);
         pulse.setDuration(2200);
