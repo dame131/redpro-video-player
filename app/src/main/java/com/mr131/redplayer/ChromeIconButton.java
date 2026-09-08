@@ -44,6 +44,16 @@ public final class ChromeIconButton extends AppCompatImageButton {
     @Override protected void onDraw(Canvas canvas) {
         Drawable icon=getDrawable();
         if(icon==null){super.onDraw(canvas);return;}
+        if("raw_asset".equals(String.valueOf(getTag()))) {
+            super.onDraw(canvas);
+            float colorPulse=Math.max(pulse,active?.22f:0f);
+            if(colorPulse>0f){
+                Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
+                icon.setColorFilter(Color.argb((int)(150*colorPulse),214,10,0),PorterDuff.Mode.SRC_ATOP);
+                icon.draw(canvas);icon.setColorFilter(null);icon.setCallback(callback);
+            }
+            return;
+        }
         Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
         for(int layer=8;layer>=1;layer--){icon.setColorFilter(Color.rgb(55+layer*8,2,2),PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(layer*.76f,layer*.76f);icon.draw(canvas);canvas.restore();}
         icon.setColorFilter(Color.rgb(9,10,12),PorterDuff.Mode.SRC_IN);
