@@ -30,7 +30,7 @@ public final class ChromeIconButton extends AppCompatImageButton {
     public void setChromeActive(boolean value) { active=value; invalidate(); }
 
     public void pulse() {
-        if(!ValueAnimator.areAnimatorsEnabled()||android.os.Build.FINGERPRINT.contains("generic")){pulse=.35f;invalidate();return;}
+        if(!ValueAnimator.areAnimatorsEnabled()||isEmulator()){pulse=.35f;invalidate();return;}
         if(animator!=null)animator.cancel();
         animator=ValueAnimator.ofFloat(0f,1f,0f);
         animator.setDuration(620);
@@ -38,6 +38,8 @@ public final class ChromeIconButton extends AppCompatImageButton {
         animator.addUpdateListener(a->{pulse=(float)a.getAnimatedValue();invalidate();});
         animator.start();
     }
+
+    private boolean isEmulator(){String model=android.os.Build.MODEL.toLowerCase();String hardware=android.os.Build.HARDWARE.toLowerCase();String product=android.os.Build.PRODUCT.toLowerCase();return model.contains("sdk")||model.contains("emulator")||hardware.contains("ranchu")||hardware.contains("goldfish")||product.contains("sdk")||product.contains("emulator");}
 
     @Override protected void onDraw(Canvas canvas) {
         Drawable icon=getDrawable();
