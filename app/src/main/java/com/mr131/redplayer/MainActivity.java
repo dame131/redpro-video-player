@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        RedPlayerBackground.apply(findViewById(R.id.root));
         findViewById(R.id.root).setContentDescription("131 Red Player Home Ready");
         prefs = getSharedPreferences("red_player", MODE_PRIVATE);
         playerView = findViewById(R.id.playerView);
@@ -427,7 +428,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showEqualizer() {
-        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(36,16,36,8);panel.setBackgroundColor(android.graphics.Color.BLACK);
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(36,16,36,8);RedPlayerBackground.apply(panel);
         TextView eqLabel=new TextView(this);eqLabel.setText("Equalizer level");eqLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(eqLabel);
         android.widget.SeekBar eq=new android.widget.SeekBar(this);eq.setMax(100);eq.setProgress(prefs.getInt("eq_level",50));panel.addView(eq);
         TextView bassLabel=new TextView(this);bassLabel.setText("Bass boost");bassLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(bassLabel);

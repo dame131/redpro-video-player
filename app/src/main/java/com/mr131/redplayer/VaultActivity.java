@@ -51,7 +51,7 @@ public final class VaultActivity extends AppCompatActivity {
     private void showLockedScreen() {
         lockedView = new LinearLayout(this); lockedView.setOrientation(LinearLayout.VERTICAL);
         lockedView.setGravity(Gravity.CENTER); lockedView.setPadding(dp(28),dp(28),dp(28),dp(28));
-        lockedView.setBackgroundColor(Color.BLACK);
+        RedPlayerBackground.apply(lockedView);
         TextView title = text("PRIVATE MEDIA VAULT", 25, Color.WHITE); title.setContentDescription("Private Vault"); lockedView.addView(title);
         lockedView.addView(text("Protected by your fingerprint or private PIN",15,Color.LTGRAY));
         Button fingerprint=button("UNLOCK WITH FINGERPRINT"); fingerprint.setOnClickListener(v->unlockBiometric()); lockedView.addView(fingerprint);
@@ -78,7 +78,7 @@ public final class VaultActivity extends AppCompatActivity {
     }
 
     private void showVault() {
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(12),dp(14),dp(12));root.setBackgroundColor(Color.BLACK);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(12),dp(14),dp(12));RedPlayerBackground.apply(root);
         TextView title=text("PRIVATE MEDIA VAULT",24,Color.WHITE);title.setContentDescription("Vault Unlocked");root.addView(title);
         Button add=button("ADD PRIVATE VIDEO");add.setOnClickListener(v->picker.launch(new String[]{"video/*"}));root.addView(add);
         ListView list=new ListView(this);adapter=new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,names){@NonNull @Override public View getView(int p,View c,@NonNull android.view.ViewGroup g){TextView v=(TextView)super.getView(p,c,g);v.setTextColor(Color.WHITE);v.setMinHeight(dp(60));return v;}};list.setAdapter(adapter);

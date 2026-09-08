@@ -52,7 +52,7 @@ public final class LibraryActivity extends AppCompatActivity {
         root.setId(View.generateViewId());
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(14), dp(12), dp(14), dp(12));
-        root.setBackgroundColor(Color.rgb(8, 8, 8));
+        RedPlayerBackground.apply(root);
 
         TextView heading = label("VIDEO LIBRARY", 24, Color.WHITE);
         heading.setContentDescription("Video Library");
@@ -75,7 +75,7 @@ public final class LibraryActivity extends AppCompatActivity {
         root.addView(browse, new LinearLayout.LayoutParams(-1, dp(48)));
 
         ListView list = new ListView(this);
-        list.setDividerHeight(1); list.setBackgroundColor(Color.rgb(8, 8, 8));
+        list.setDividerHeight(1); list.setBackgroundColor(Color.TRANSPARENT);
         adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, shownLabels) {
             @NonNull @Override public View getView(int position, View convertView, @NonNull android.view.ViewGroup parent) {
                 TextView row = (TextView) super.getView(position, convertView, parent);

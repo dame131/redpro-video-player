@@ -34,7 +34,7 @@ import java.util.ArrayList;
 public final class SubtitleDownloadActivity extends AppCompatActivity {
     private final ArrayList<Integer> fileIds=new ArrayList<>();private final ArrayList<String> labels=new ArrayList<>();private ArrayAdapter<String> adapter;private EditText query,key;private TextView status;
     @Override protected void onCreate(Bundle state){super.onCreate(state);setTitle("Subtitle Downloader");String video=getIntent().getStringExtra("video_name");if(video==null)video="";video=video.replaceFirst("(?i)\\.[a-z0-9]{2,5}$","").replace('.',' ');
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(14),dp(16),dp(14));root.setBackgroundColor(Color.BLACK);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(14),dp(16),dp(14));RedPlayerBackground.apply(root);
         TextView title=text("SUBTITLE DOWNLOADER",24,Color.WHITE);title.setContentDescription("Subtitle Downloader Screen 8");root.addView(title);
         query=input("Movie or episode name");query.setText(video);root.addView(query);
         key=input("OpenSubtitles API key");key.setInputType(129);key.setText(getSharedPreferences("red_player",MODE_PRIVATE).getString("subtitle_api_key",""));root.addView(key);
