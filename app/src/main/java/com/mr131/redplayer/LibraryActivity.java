@@ -54,6 +54,7 @@ public final class LibraryActivity extends AppCompatActivity {
         root.setPadding(dp(14), dp(12), dp(14), dp(12));
         RedPlayerBackground.apply(root);
 
+        root.addView(LuxuryIconView.create(this,R.drawable.icon_library_thick,"Video Library emblem"));
         TextView heading = label("VIDEO LIBRARY", 24, Color.WHITE);
         heading.setContentDescription("Video Library");
         root.addView(heading);

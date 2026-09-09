@@ -22,6 +22,7 @@ import android.view.ContextThemeWrapper;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import androidx.appcompat.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -84,6 +85,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean gesturesEnabled = true;
     private boolean resumeEnabled = true;
     private TextView gestureOverlay;
+    private TextView positionText, durationText;
+    private SeekBar playerSeek;
+    private View playerControls;
     private Uri subtitleUri;
     private long subtitleOffsetMs = 0;
     private boolean softwareDecoder = false;
@@ -123,6 +127,10 @@ public class MainActivity extends AppCompatActivity {
         titleText = findViewById(R.id.titleText);
         bottomBar = findViewById(R.id.bottomBar);
         gestureOverlay = findViewById(R.id.gestureOverlay);
+        positionText = findViewById(R.id.positionText);
+        durationText = findViewById(R.id.durationText);
+        playerSeek = findViewById(R.id.playerSeek);
+        playerControls = findViewById(R.id.playerControls);
         wireButtons();
         startIconEntrance();
         wireGestures();
@@ -159,6 +167,14 @@ public class MainActivity extends AppCompatActivity {
         bindAnimated(R.id.settingsButton,this::showSettings);
         bindAnimated(R.id.searchButton,v -> showSearch());
         bindAnimated(R.id.moreButton,this::showMore);
+        bindAnimated(R.id.rewindButton,v -> {if(player!=null)player.seekTo(Math.max(0,player.getCurrentPosition()-10_000));});
+        bindAnimated(R.id.centerPlayButton,v -> {if(player!=null){if(player.isPlaying())player.pause();else player.play();}});
+        bindAnimated(R.id.forwardButton,v -> {if(player!=null)player.seekTo(Math.min(Math.max(0,player.getDuration()),player.getCurrentPosition()+10_000));});
+        playerSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar bar,int value,boolean fromUser){if(fromUser&&player!=null&&player.getDuration()>0)player.seekTo(player.getDuration()*value/1000L);}
+            @Override public void onStartTrackingTouch(SeekBar bar){}
+            @Override public void onStopTrackingTouch(SeekBar bar){}
+        });
     }
 
     private void bindAnimated(int id, View.OnClickListener action) {
@@ -222,10 +238,11 @@ public class MainActivity extends AppCompatActivity {
     private void wirePlayer() {
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int state) {
-                if(state==Player.STATE_READY) playerView.setContentDescription("Video Ready");
+                if(state==Player.STATE_READY){playerView.setContentDescription("Video Ready");updatePlayerControls();}
             }
             @Override public void onIsPlayingChanged(boolean isPlaying) {
                 if (!isPlaying) savePosition();
+                findViewById(R.id.centerPlayButton).setContentDescription(isPlaying?"Pause":"Play");
             }
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
                 current = player.getCurrentMediaItemIndex();
@@ -237,6 +254,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         handler.post(abLoop);
+        handler.post(progressLoop);
+    }
+
+    private final Runnable progressLoop=new Runnable(){@Override public void run(){updatePlayerControls();handler.postDelayed(this,500);}};
+    private void updatePlayerControls(){
+        if(player==null)return;long position=Math.max(0,player.getCurrentPosition());long duration=player.getDuration();
+        positionText.setText(formatTime(position));durationText.setText(duration>0?formatTime(duration):"0:00:00");
+        playerSeek.setProgress(duration>0?(int)Math.min(1000,position*1000/duration):0);
     }
 
     private final Runnable abLoop = new Runnable() {
@@ -336,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void toggleLock() {
         controlsLocked = !controlsLocked;
-        playerView.setUseController(!controlsLocked);
+        playerControls.setVisibility(controlsLocked?View.GONE:View.VISIBLE);
         findViewById(R.id.lockButton).setAlpha(controlsLocked ? .45f : 1f);
         toast(controlsLocked ? "Controls locked. Hold video to unlock." : "Controls unlocked");
     }
@@ -347,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
             @Override public boolean onDown(@NonNull MotionEvent e) { return true; }
             @Override public void onLongPress(@NonNull MotionEvent e) { if (controlsLocked) toggleLock(); }
             @Override public boolean onSingleTapConfirmed(@NonNull MotionEvent e) {
-                if (!controlsLocked) playerView.showController();
+                if (!controlsLocked) playerControls.setVisibility(playerControls.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
                 return true;
             }
             @Override public boolean onDoubleTap(@NonNull MotionEvent e) {
@@ -435,6 +460,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showEqualizer() {
         LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(36,16,36,8);RedPlayerBackground.apply(panel);
+        panel.addView(LuxuryIconView.create(this,R.drawable.icon_equalizer_thick,"Equalizer emblem"));
         TextView eqLabel=new TextView(this);eqLabel.setText("Equalizer level");eqLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(eqLabel);
         android.widget.SeekBar eq=new android.widget.SeekBar(this);eq.setMax(100);eq.setProgress(prefs.getInt("eq_level",50));panel.addView(eq);
         TextView bassLabel=new TextView(this);bassLabel.setText("Bass boost");bassLabel.setTextColor(android.graphics.Color.WHITE);panel.addView(bassLabel);
@@ -527,7 +553,7 @@ public class MainActivity extends AppCompatActivity {
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_SHORT).show();}
     private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(Collections.singletonList(intent.getData()));}
 
-    @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);}
+    @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);playerControls.setVisibility(inPip?View.GONE:View.VISIBLE);}
     @Override protected void onStop(){super.onStop();if(!isInPictureInPictureMode())savePosition();}
     @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);playerView.setPlayer(null);if(castPlayer!=null)castPlayer.release();super.onDestroy();}
 }

@@ -155,6 +155,9 @@ public final class ScreenTourTest {
         ensureAppForeground("01-home");
         waitFor(By.text("demo.mp4"), "demo video title");
         waitFor(By.desc("Video Ready"), "first playable video frame");
+        waitFor(By.desc("Rewind 10 seconds"), "custom rewind control");
+        waitFor(By.desc("Play"), "custom play control");
+        waitFor(By.desc("Forward 10 seconds"), "custom forward control");
         device.waitForIdle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
     }
