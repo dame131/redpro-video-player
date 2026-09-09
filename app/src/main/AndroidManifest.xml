@@ -8,6 +8,7 @@
   <activity android:name=".SubtitleDownloadActivity" android:exported="false"/>
   <activity android:name=".HistoryActivity" android:exported="false"/>
   <activity android:name=".TechnicalInspectorActivity" android:exported="false"/>
+  <activity android:name=".VlcPlayerActivity" android:exported="false" android:supportsPictureInPicture="true" android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"/>
   <service android:name=".PlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true"><intent-filter><action android:name="androidx.media3.session.MediaSessionService"/></intent-filter></service>
   <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.files" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/></provider>
   <activity android:name=".MainActivity" android:theme="@style/Theme.RedPlayer.Launch" android:resizeableActivity="true" android:supportsPictureInPicture="true" android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden" android:exported="true">

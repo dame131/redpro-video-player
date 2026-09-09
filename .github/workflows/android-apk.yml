@@ -37,10 +37,14 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Prepare phone download
-        run: cp app/build/outputs/apk/debug/app-debug.apk 131-Red-Player.apk
+        run: |
+          VERSION=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle)
+          cp app/build/outputs/apk/debug/app-debug.apk "131-Red-Player-${VERSION}.apk"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
       - name: Publish permanent APK download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v1.0.0 >/dev/null 2>&1 || gh release create v1.0.0 --title "131 Red Player v1.0.0" --notes "Installable Android build of 131 Red Player."
-          gh release upload v1.0.0 131-Red-Player.apk --clobber
+          TAG="v${VERSION}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "131 Red Player ${VERSION}" --notes "Installable tested build of 131 Red Player ${VERSION}."
+          gh release upload "$TAG" "131-Red-Player-${VERSION}.apk" --clobber

@@ -217,7 +217,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void toggleDecoder(View view) {
         softwareDecoder=!softwareDecoder;prefs.edit().putBoolean("software_decoder",softwareDecoder).apply();setChromeActive(view,softwareDecoder);view.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");
-        PlaybackService.setSoftwareDecoder(softwareDecoder);playerView.setPlayer(null);connectPlayer(0);toast((softwareDecoder?"Software":"Hardware")+" decoder selected");
+        if(softwareDecoder){toast("VLC software codec selected");if(current>=0)openVlcCodec();}
+        else{PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);toast("Hardware decoder selected");}
     }
 
     private void setupCast() {
@@ -250,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
             }
             @Override public void onPlayerError(@NonNull PlaybackException error) {
                 prefs.edit().putString("last_error",error.getErrorCodeName()+": "+error.getMessage()).apply();
-                new AlertDialog.Builder(MainActivity.this).setTitle("Playback recovery").setMessage("The video stopped: "+error.getErrorCodeName()+"\n\nRetry, change decoder, or skip this file.").setPositiveButton("Retry",(d,w)->{player.prepare();player.play();}).setNeutralButton("Change decoder",(d,w)->toggleDecoder(findViewById(R.id.decoderButton))).setNegativeButton("Next video",(d,w)->playIndex(current+1,true)).show();
+                new AlertDialog.Builder(MainActivity.this).setTitle("Playback recovery").setMessage("The phone codec could not play this video. Use the built-in VLC codec, retry, or skip it.").setPositiveButton("VLC CODEC",(d,w)->openVlcCodec()).setNeutralButton("Retry",(d,w)->{player.prepare();player.play();}).setNegativeButton("Next video",(d,w)->playIndex(current+1,true)).show();
             }
         });
         handler.post(abLoop);
@@ -432,9 +433,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMore(View anchor) {
         PopupMenu menu = new PopupMenu(new ContextThemeWrapper(this, R.style.ThemeOverlay_RedPlayer_Popup), anchor);
-        menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Download subtitles"); menu.getMenu().add("History & recovery"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
+        menu.getMenu().add("VLC codec player");menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Download subtitles"); menu.getMenu().add("History & recovery"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
+            if(title.equals("VLC codec player"))openVlcCodec();
             if(title.equals("Audio tracks"))showAudioTracks();
             if(title.equals("Equalizer & Bass"))showEqualizer();
             if(title.equals("Subtitle timing"))showSubtitleTiming();
@@ -457,6 +459,8 @@ public class MainActivity extends AppCompatActivity {
     private void unlockVault() {
         vaultLauncher.launch(new Intent(this, VaultActivity.class));
     }
+
+    private void openVlcCodec(){if(current<0||current>=videos.size()){toast("Open a video first");return;}long position=player==null?0:Math.max(0,player.getCurrentPosition());if(player!=null)player.pause();Intent intent=new Intent(this,VlcPlayerActivity.class).setData(videos.get(current)).putExtra("title",names.get(current)).putExtra("position",position).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(intent);}
 
     private void showEqualizer() {
         LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(36,16,36,8);RedPlayerBackground.apply(panel);
@@ -501,7 +505,7 @@ public class MainActivity extends AppCompatActivity {
             if(w==2){prefs.edit().putBoolean("keep_awake",on).apply();applyKeepAwake(on);}
             if(w==3){resumeEnabled=on;prefs.edit().putBoolean("resume",on).apply();}
             if(w==4){gesturesEnabled=on;prefs.edit().putBoolean("gestures",on).apply();}
-            if(w==5){softwareDecoder=on;prefs.edit().putBoolean("software_decoder",on).apply();PlaybackService.setSoftwareDecoder(on);playerView.setPlayer(null);connectPlayer(0);}
+            if(w==5){softwareDecoder=on;prefs.edit().putBoolean("software_decoder",on).apply();if(on)openVlcCodec();else{PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);}}
         }).setNeutralButton("Clear history",(d,w)->{clearHistoryOnly();toast("Playback history cleared");}).setPositiveButton("Done",null).show();
     }
 
@@ -516,7 +520,7 @@ public class MainActivity extends AppCompatActivity {
         PlaybackService.setEqualizer(prefs.getBoolean("eq_on",false),prefs.getInt("eq_level",50),prefs.getInt("bass",50));
         applyKeepAwake(prefs.getBoolean("keep_awake", false));
         View speedIcon=findViewById(R.id.speedButton);speedIcon.setContentDescription("Playback speed "+speed+" times");setChromeActive(speedIcon,speed!=1f);
-        View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");setChromeActive(decoderIcon,softwareDecoder);
+        View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"VLC software codec":"Hardware decoder");setChromeActive(decoderIcon,softwareDecoder);
     }
 
     private void applyKeepAwake(boolean on) {

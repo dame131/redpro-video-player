@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import android.content.Context;
@@ -99,10 +98,12 @@ public final class ScreenTourTest {
         capture("14-equalizer-bass", By.text("Equalizer & Bass Boost"), true); device.pressBack();
         clickResource("moreButton"); click(By.text("Sleep timer"), "sleep timer menu");
         capture("15-sleep-timer", By.text("Sleep timer"), true); device.pressBack();
-        clickResource("settingsButton"); click(By.text("Software decoder"), "decoder setting");
+        clickResource("settingsButton");
         capture("16-decoder-settings", By.text("Software decoder"), true); device.pressBack();
         startScreen(VaultActivity.class); waitFor(By.desc("Private Vault"), "vault"); click(By.text("CREATE VAULT PIN"), "create PIN");
         capture("17-vault-pin", By.text("Create vault PIN"), true);
+        device.pressBack();startVlcScreen();
+        capture("19-vlc-codec-player", By.desc("VLC Codec Player Ready"), true);
     }
 
     private void startScreen(Class<?> screen) {
@@ -113,12 +114,14 @@ public final class ScreenTourTest {
         Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://example.com/test.mp4"),target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
     }
 
+    private void startVlcScreen(){Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,VlcPlayerActivity.class).setData(installDemoVideo(target)).putExtra("title","demo.mp4").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);target.startActivity(intent);device.waitForIdle();}
+
     private void clickResource(String id) {
         click(By.res(PACKAGE, id), id);
     }
 
     private void clickScrollableResource(int id) {
-        onView(withId(id)).perform(scrollTo(), androidx.test.espresso.action.ViewActions.click());
+        onView(withId(id)).perform(androidx.test.espresso.action.ViewActions.click());
         device.waitForIdle();
     }
 
