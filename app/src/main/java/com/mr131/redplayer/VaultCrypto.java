@@ -10,7 +10,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
-import java.security.SecureRandom;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -28,10 +27,12 @@ final class VaultCrypto {
     private VaultCrypto() {}
 
     static void encrypt(InputStream source, File target) throws Exception {
-        byte[] iv = new byte[IV_SIZE];
-        new SecureRandom().nextBytes(iv);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, key(), new GCMParameterSpec(128, iv));
+        // Android Keystore must generate the GCM IV itself. Supplying a caller-created
+        // IV is rejected on real devices when randomized encryption is enforced.
+        cipher.init(Cipher.ENCRYPT_MODE, key());
+        byte[] iv = cipher.getIV();
+        if (iv == null || iv.length != IV_SIZE) throw new SecurityException("Unable to create vault IV");
         try (BufferedOutputStream raw = new BufferedOutputStream(new FileOutputStream(target))) {
             raw.write(MAGIC);
             raw.write(iv);
