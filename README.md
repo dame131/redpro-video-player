@@ -30,6 +30,9 @@ Private, ad-free, installable video player for phones and computers.
 ## Working
 
 - Local videos and folders
+- Recoverable 30-day video Trash with restore and permanent delete
+- Sort by name, size, duration or newest
+- Expanded VLC network routing for SFTP, NFS, UDP, RTP, MMS and UPnP addresses
 - Playlist and automatic next video
 - Resume position
 - Seek, skip, volume, speed, fullscreen

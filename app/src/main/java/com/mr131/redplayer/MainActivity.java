@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> networkLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
                 if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null){
-                    Uri uri=result.getData().getData();addVideos(Collections.singletonList(uri));playIndex(videos.size()-1,true);String scheme=uri.getScheme();if("smb".equalsIgnoreCase(scheme)||"ftp".equalsIgnoreCase(scheme)||"ftps".equalsIgnoreCase(scheme))openVlcCodec();
+                    Uri uri=result.getData().getData();addVideos(Collections.singletonList(uri));playIndex(videos.size()-1,true);String scheme=uri.getScheme();if(scheme!=null&&!scheme.equalsIgnoreCase("http")&&!scheme.equalsIgnoreCase("https")&&!scheme.equalsIgnoreCase("rtsp"))openVlcCodec();
                 }
             });
     private final ActivityResultLauncher<Intent> downloadedSubtitleLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addSubtitle(result.getData().getData());});
