@@ -70,6 +70,8 @@ import java.util.concurrent.Executor;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
@@ -115,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(), this::addVideos);
+    private final ActivityResultLauncher<String[]> playlistFilePicker = registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::importPlaylistFile);
     private final ActivityResultLauncher<String[]> subtitlePicker = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), this::addSubtitle);
     private final ActivityResultLauncher<Intent> libraryLauncher = registerForActivityResult(
@@ -483,8 +486,11 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }); menu.show();
     }
-    private void showTools(){String[] items={"Advanced playback","VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)showAdvancedPlayback();if(w==1)openVlcCodec();if(w==2)toggleAudioOnly();if(w==3)saveVideoScreenshot();if(w==4)startActivity(new Intent(this,BackupActivity.class));if(w==5)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));}).setNegativeButton("Close",null).show();}
+    private void showTools(){String[] items={"Advanced playback","Music library","Import M3U playlist","VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)showAdvancedPlayback();if(w==1)libraryLauncher.launch(new Intent(this,AudioLibraryActivity.class));if(w==2)playlistFilePicker.launch(new String[]{"audio/x-mpegurl","application/x-mpegURL","application/vnd.apple.mpegurl","text/plain"});if(w==3)openVlcCodec();if(w==4)toggleAudioOnly();if(w==5)saveVideoScreenshot();if(w==6)startActivity(new Intent(this,BackupActivity.class));if(w==7)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));}).setNegativeButton("Close",null).show();}
 
+
+
+    private void importPlaylistFile(Uri uri){if(uri==null)return;new Thread(()->{int added=0;try(BufferedReader reader=new BufferedReader(new InputStreamReader(getContentResolver().openInputStream(uri),StandardCharsets.UTF_8))){String line;while((line=reader.readLine())!=null){line=line.trim();if(line.isEmpty()||line.startsWith("#"))continue;Uri media=Uri.parse(line);String scheme=media.getScheme();if(scheme==null){try{media=Uri.withAppendedPath(uri.buildUpon().path(uri.getPath()==null?"":uri.getPath().substring(0,Math.max(0,uri.getPath().lastIndexOf('/')+1))).build(),line);}catch(Exception ignored){continue;}}final Uri item=media;runOnUiThread(()->addVideos(Collections.singletonList(item)));added++;}}catch(Exception e){runOnUiThread(()->toast("Playlist could not be read"));return;}int count=added;runOnUiThread(()->{toast(count+" playlist items imported");if(count>0)playIndex(Math.max(0,videos.size()-count),false);});},"playlist-import").start();}
 
     private void showAdvancedPlayback(){
         String[] items={"Quick mute","Frame backward","Frame forward","Jump to time","Reset pinch zoom","Video enhancement filters","Subtitle appearance","Preferred audio & subtitle language","Equalizer presets"};

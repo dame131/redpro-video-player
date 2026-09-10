@@ -30,6 +30,9 @@ Private, ad-free, installable video player for phones and computers.
 ## Working
 
 - Local videos and folders
+- Complete on-device music library with song, artist and album search
+- Local and internet M3U/M3U8 playlist importing
+- Android TV compatible manifest and remote-friendly non-touch support
 - Recoverable 30-day video Trash with restore and permanent delete
 - Sort by name, size, duration or newest
 - Expanded VLC network routing for SFTP, NFS, UDP, RTP, MMS and UPnP addresses
