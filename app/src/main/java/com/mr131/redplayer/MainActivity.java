@@ -486,7 +486,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }); menu.show();
     }
-    private void showTools(){String[] items={"Advanced playback","Music library","Import M3U playlist","VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)showAdvancedPlayback();if(w==1)libraryLauncher.launch(new Intent(this,AudioLibraryActivity.class));if(w==2)playlistFilePicker.launch(new String[]{"audio/x-mpegurl","application/x-mpegURL","application/vnd.apple.mpegurl","text/plain"});if(w==3)openVlcCodec();if(w==4)toggleAudioOnly();if(w==5)saveVideoScreenshot();if(w==6)startActivity(new Intent(this,BackupActivity.class));if(w==7)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));}).setNegativeButton("Close",null).show();}
+    private void showTools(){String[] items={"Advanced playback","Music library","Import M3U playlist","VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources","Playback Lab"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)showAdvancedPlayback();if(w==1)libraryLauncher.launch(new Intent(this,AudioLibraryActivity.class));if(w==2)playlistFilePicker.launch(new String[]{"audio/x-mpegurl","application/x-mpegURL","application/vnd.apple.mpegurl","text/plain"});if(w==3)openVlcCodec();if(w==4)toggleAudioOnly();if(w==5)saveVideoScreenshot();if(w==6)startActivity(new Intent(this,BackupActivity.class));if(w==7)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));if(w==8)startActivity(new Intent(this,PlaybackLabActivity.class));}).setNegativeButton("Close",null).show();}
 
 
 

@@ -107,7 +107,7 @@ public final class ScreenTourTest {
         device.pressBack();startVlcScreen();
         capture("19-vlc-codec-player", By.desc("VLC Codec Player Ready"), true);
         startScreen(AudioLibraryActivity.class);capture("24-music-library",By.desc("Music Library Screen"),true);
-        startScreen(TrashActivity.class);capture("23-video-trash",By.desc("Video Trash Screen"),true);
+        startScreen(TrashActivity.class);capture("23-video-trash",By.desc("Video Trash Screen"),true);startScreen(PlaybackLabActivity.class);capture("25-playback-lab",By.desc("Playback Lab Screen"),true);
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
         startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);

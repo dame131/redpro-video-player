@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.content.SharedPreferences;
 import android.util.Rational;
 import android.view.Gravity;
 import android.view.View;
@@ -42,8 +43,10 @@ public final class VlcPlayerActivity extends AppCompatActivity {
         Uri uri=getIntent().getData();
         if(uri==null){finish();return;}
         buildScreen(getIntent().getStringExtra("title"));
+        SharedPreferences prefs=getSharedPreferences("red_player",MODE_PRIVATE);
         ArrayList<String> options=new ArrayList<>();
-        options.add("--network-caching=1500");options.add("--clock-jitter=0");options.add("--clock-synchro=0");
+        options.add("--network-caching="+prefs.getInt("vlc_network_cache",1500));options.add("--clock-jitter=0");options.add("--clock-synchro=0");
+        if(prefs.getBoolean("vlc_normalize",false))options.add("--audio-filter=normvol");
         vlc=new LibVLC(this,options);player=new MediaPlayer(vlc);player.attachViews(video,null,true,false);
         Media media;
         try{
@@ -52,9 +55,10 @@ public final class VlcPlayerActivity extends AppCompatActivity {
             else media=new Media(vlc,uri);
         }catch(Exception error){Toast.makeText(this,"VLC could not open this file",Toast.LENGTH_LONG).show();finish();return;}
         media.setHWDecoderEnabled(false,false);media.addOption(":codec=all");
+        String[] encodings={"","UTF-8","Windows-1252","ISO-8859-1","UTF-16"};int encoding=prefs.getInt("subtitle_encoding",0);if(encoding>0&&encoding<encodings.length)media.addOption(":subsdec-encoding="+encodings[encoding]);
         player.setMedia(media);media.release();
         player.setEventListener(event->{if(event.type==MediaPlayer.Event.EncounteredError)runOnUiThread(()->Toast.makeText(this,"VLC could not decode this file",Toast.LENGTH_LONG).show());if(event.type==MediaPlayer.Event.EndReached)runOnUiThread(this::finish);});
-        player.play();long start=getIntent().getLongExtra("position",0);if(start>0)handler.postDelayed(()->player.setTime(start),500);handler.post(progress);
+        player.play();player.setVolume(prefs.getInt("vlc_volume",100));player.setAudioDelay(prefs.getInt("vlc_audio_delay",0)*1000L);player.setSpuDelay(prefs.getInt("vlc_subtitle_delay",0)*1000L);String[] deinterlace={"","auto","yadif","blend"};int di=prefs.getInt("vlc_deinterlace",0);if(di>0&&di<deinterlace.length)player.setDeinterlace(deinterlace[di]);long start=getIntent().getLongExtra("position",0);if(start>0)handler.postDelayed(()->player.setTime(start),500);handler.post(progress);
     }
 
     private void buildScreen(String title){
