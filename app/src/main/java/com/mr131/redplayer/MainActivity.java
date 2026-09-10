@@ -21,6 +21,10 @@ import android.provider.MediaStore;
 import android.util.Rational;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
 import android.view.View;
 import android.view.ContextThemeWrapper;
 import android.view.WindowManager;
@@ -101,6 +105,9 @@ public class MainActivity extends AppCompatActivity {
     private long subtitleOffsetMs = 0;
     private boolean softwareDecoder = false;
     private boolean audioOnly = false;
+    private boolean muted = false;
+    private float videoScale = 1f;
+    private ScaleGestureDetector scaleDetector;
     private boolean fourKMode = true;
     private LocalCastServer localCastServer;
     private String lastAutomaticFallback="";
@@ -333,7 +340,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void addSubtitle(Uri uri) {
         if (uri == null || current < 0) return;
-        subtitleUri = uri; subtitleOffsetMs = prefs.getLong("subtitle_offset", 0); applySubtitle();
+        subtitleUri = uri; subtitleOffsetMs = prefs.getLong("subtitle_offset", 0); applySubtitleAppearance(); applySubtitle();
     }
 
     private void applySubtitle() {
@@ -353,8 +360,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSpeed(View anchor) {
-        final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×"};
-        final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f};
+        final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×","4×","6×","8×"};
+        final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f,4f,6f,8f};
         new AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(labels, indexOf(values, speed), (d, which) -> {
             speed = values[which]; player.setPlaybackSpeed(speed); SharedPreferences.Editor edit=prefs.edit().putFloat("speed",speed);if(current>=0)edit.putFloat(videoKey("speed"),speed);edit.apply(); anchor.setContentDescription("Playback speed " + labels[which]); setChromeActive(anchor,speed!=1f); d.dismiss();
         }).show();
@@ -393,6 +400,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void wireGestures() {
+        scaleDetector = new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
+            @Override public boolean onScale(ScaleGestureDetector detector){if(controlsLocked||!gesturesEnabled)return false;videoScale=Math.max(1f,Math.min(5f,videoScale*detector.getScaleFactor()));View surface=playerView.getVideoSurfaceView();if(surface!=null){surface.setPivotX(detector.getFocusX());surface.setPivotY(detector.getFocusY());surface.setScaleX(videoScale);surface.setScaleY(videoScale);}showGesture(String.format(Locale.US,"Zoom %.1f×",videoScale));return true;}
+        });
         AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
         GestureDetector detector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override public boolean onDown(@NonNull MotionEvent e) { return true; }
@@ -440,7 +450,7 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
-        playerView.setOnTouchListener((view, event) -> detector.onTouchEvent(event));
+        playerView.setOnTouchListener((view, event) -> {boolean zoom=scaleDetector.onTouchEvent(event);if(scaleDetector.isInProgress())return true;return detector.onTouchEvent(event)||zoom;});
     }
 
     private void showPlaylist(String filter) {
@@ -473,7 +483,24 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }); menu.show();
     }
-    private void showTools(){String[] items={"VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)openVlcCodec();if(w==1)toggleAudioOnly();if(w==2)saveVideoScreenshot();if(w==3)startActivity(new Intent(this,BackupActivity.class));if(w==4)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));}).setNegativeButton("Close",null).show();}
+    private void showTools(){String[] items={"Advanced playback","VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)showAdvancedPlayback();if(w==1)openVlcCodec();if(w==2)toggleAudioOnly();if(w==3)saveVideoScreenshot();if(w==4)startActivity(new Intent(this,BackupActivity.class));if(w==5)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));}).setNegativeButton("Close",null).show();}
+
+
+    private void showAdvancedPlayback(){
+        String[] items={"Quick mute","Frame backward","Frame forward","Jump to time","Reset pinch zoom","Video enhancement filters","Subtitle appearance","Preferred audio & subtitle language","Equalizer presets"};
+        new AlertDialog.Builder(this).setTitle("Advanced playback").setItems(items,(d,w)->{if(w==0)toggleMute();if(w==1)stepFrame(-1);if(w==2)stepFrame(1);if(w==3)showJumpToTime();if(w==4)resetZoom();if(w==5)showVideoFilters();if(w==6)showSubtitleAppearance();if(w==7)showPreferredLanguages();if(w==8)showEqualizerPresets();}).setNegativeButton("Close",null).show();
+    }
+    private void toggleMute(){AudioManager a=(AudioManager)getSystemService(AUDIO_SERVICE);muted=!muted;a.adjustStreamVolume(AudioManager.STREAM_MUSIC,muted?AudioManager.ADJUST_MUTE:AudioManager.ADJUST_UNMUTE,0);toast(muted?"Quick mute on":"Sound restored");}
+    private void stepFrame(int direction){if(player==null||current<0){toast("Open a video first");return;}player.pause();long step=33;androidx.media3.common.Format f=localPlayer.getVideoFormat();if(f!=null&&f.frameRate>0)step=Math.max(1,Math.round(1000f/f.frameRate));player.seekTo(Math.max(0,Math.min(player.getDuration(),player.getCurrentPosition()+direction*step)));showGesture(direction<0?"Previous frame":"Next frame");}
+    private void showJumpToTime(){if(player==null||current<0){toast("Open a video first");return;}EditText input=new EditText(this);input.setHint("HH:MM:SS or seconds");input.setSingleLine(true);input.setTextColor(android.graphics.Color.WHITE);input.setHintTextColor(android.graphics.Color.LTGRAY);new AlertDialog.Builder(this).setTitle("Jump to time").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Jump",(d,w)->{try{String[] p=input.getText().toString().trim().split(":");long seconds=0;for(String part:p)seconds=seconds*60+Long.parseLong(part);player.seekTo(Math.max(0,Math.min(player.getDuration(),seconds*1000)));}catch(Exception e){toast("Enter a valid time");}}).show();}
+    private void resetZoom(){videoScale=1f;View surface=playerView.getVideoSurfaceView();if(surface!=null){surface.setScaleX(1f);surface.setScaleY(1f);surface.setTranslationX(0f);surface.setTranslationY(0f);}toast("Pinch zoom reset");}
+    private void showVideoFilters(){String[] labels={"Natural","Vivid","Cinema","Grayscale","High contrast"};new AlertDialog.Builder(this).setTitle("Video enhancement filters").setSingleChoiceItems(labels,prefs.getInt("video_filter",0),(d,w)->{prefs.edit().putInt("video_filter",w).apply();applyVideoFilter(w);d.dismiss();toast(labels[w]+" filter");}).show();}
+    private void applyVideoFilter(int mode){View surface=playerView.getVideoSurfaceView();if(surface==null)return;ColorMatrix matrix=new ColorMatrix();if(mode==1)matrix.setSaturation(1.35f);else if(mode==2)matrix.set(new float[]{1.15f,0,0,0,8,0,1.05f,0,0,2,0,0,.9f,0,-4,0,0,0,1,0});else if(mode==3)matrix.setSaturation(0f);else if(mode==4)matrix.set(new float[]{1.35f,0,0,0,-28,0,1.35f,0,0,-28,0,0,1.35f,0,-28,0,0,0,1,0});Paint paint=new Paint();paint.setColorFilter(mode==0?null:new ColorMatrixColorFilter(matrix));surface.setLayerType(View.LAYER_TYPE_HARDWARE,paint);surface.setLayerPaint(paint);}
+    private void showSubtitleAppearance(){String[] labels={"Small white","Medium white","Large white","Large yellow","Large crimson"};new AlertDialog.Builder(this).setTitle("Subtitle appearance").setSingleChoiceItems(labels,prefs.getInt("subtitle_style",1),(d,w)->{prefs.edit().putInt("subtitle_style",w).apply();applySubtitleAppearance();d.dismiss();}).show();}
+    private void applySubtitleAppearance(){if(playerView.getSubtitleView()==null)return;int style=prefs.getInt("subtitle_style",1);float size=style==0?.045f:style==1?.055f:.07f;int color=style==3?android.graphics.Color.YELLOW:style==4?getColor(R.color.red_player):android.graphics.Color.WHITE;playerView.getSubtitleView().setFractionalTextSize(size);playerView.getSubtitleView().setStyle(new androidx.media3.ui.CaptionStyleCompat(color,android.graphics.Color.TRANSPARENT,android.graphics.Color.BLACK,androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,android.graphics.Color.BLACK,null));}
+    private void showPreferredLanguages(){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(30,10,30,10);EditText audio=new EditText(this);audio.setHint("Audio language code, e.g. en");audio.setText(prefs.getString("audio_language",""));audio.setTextColor(android.graphics.Color.WHITE);EditText subtitle=new EditText(this);subtitle.setHint("Subtitle language code, e.g. en");subtitle.setText(prefs.getString("subtitle_language",""));subtitle.setTextColor(android.graphics.Color.WHITE);box.addView(audio);box.addView(subtitle);new AlertDialog.Builder(this).setTitle("Preferred languages").setView(box).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{prefs.edit().putString("audio_language",audio.getText().toString().trim()).putString("subtitle_language",subtitle.getText().toString().trim()).apply();applyPreferredLanguages();}).show();}
+    private void applyPreferredLanguages(){if(localPlayer==null)return;String audio=prefs.getString("audio_language",""),sub=prefs.getString("subtitle_language","");androidx.media3.common.TrackSelectionParameters.Builder b=localPlayer.getTrackSelectionParameters().buildUpon();if(!audio.isEmpty())b.setPreferredAudioLanguage(audio);if(!sub.isEmpty())b.setPreferredTextLanguage(sub);localPlayer.setTrackSelectionParameters(b.build());}
+    private void showEqualizerPresets(){String[] labels={"Flat","Bass Boost","Voice","Cinema","Late Night"};int[] eq={50,60,70,65,45},bass={50,100,25,75,35};new AlertDialog.Builder(this).setTitle("Equalizer presets").setItems(labels,(d,w)->{prefs.edit().putBoolean("eq_on",true).putInt("eq_level",eq[w]).putInt("bass",bass[w]).apply();PlaybackService.setEqualizer(true,eq[w],bass[w]);toast(labels[w]+" preset");}).show();}
 
     private void showAudioTracks() {
         Tracks tracks=player.getCurrentTracks(); ArrayList<Tracks.Group> groups=new ArrayList<>(); ArrayList<Integer> trackIndexes=new ArrayList<>(); ArrayList<String> labels=new ArrayList<>();
@@ -543,6 +570,7 @@ public class MainActivity extends AppCompatActivity {
         softwareDecoder = prefs.getBoolean("software_decoder", false);
         fourKMode = prefs.getBoolean("four_k_mode", true);
         audioOnly = prefs.getBoolean("audio_only",false);playerView.setAlpha(audioOnly?0f:1f);
+        applyPreferredLanguages();applyVideoFilter(prefs.getInt("video_filter",0));applySubtitleAppearance();
         player.setPlaybackSpeed(speed);
         player.setRepeatMode(prefs.getBoolean("repeat", false) ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
         player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));

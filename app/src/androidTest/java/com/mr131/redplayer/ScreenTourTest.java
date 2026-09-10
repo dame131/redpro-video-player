@@ -108,6 +108,7 @@ public final class ScreenTourTest {
         capture("19-vlc-codec-player", By.desc("VLC Codec Player Ready"), true);
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
+        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);
     }
 
     private void startScreen(Class<?> screen) {

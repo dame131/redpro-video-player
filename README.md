@@ -10,7 +10,9 @@ The Android app uses Media3 for real local playback. It includes:
 - Hardware-accelerated playback with Media3/ExoPlayer
 - 4K Ultra HD mode with highest-quality adaptive track selection and automatic 4K badge
 - Persistent playlist access and resume positions
-- Playback speed from 0.25× to 3×
+- Playback speed from 0.25× to 8×
+- Two-finger pinch zoom up to 5× with reset
+- Frame stepping, jump-to-time, Quick Mute, video filters, subtitle styling, preferred languages and equalizer presets
 - Local SRT and WebVTT subtitles
 - A–B repeat
 - Picture-in-picture
