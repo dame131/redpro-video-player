@@ -101,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
     private long subtitleOffsetMs = 0;
     private boolean softwareDecoder = false;
     private boolean audioOnly = false;
+    private boolean fourKMode = true;
     private LocalCastServer localCastServer;
     private String lastAutomaticFallback="";
     private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
@@ -258,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
     private void wirePlayer() {
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int state) {
-                if(state==Player.STATE_READY){playerView.setContentDescription("Video Ready");updatePlayerControls();}
+                if(state==Player.STATE_READY){playerView.setContentDescription("Video Ready");updatePlayerControls();updateFourKBadge();}
             }
             @Override public void onIsPlayingChanged(boolean isPlaying) {
                 if (!isPlaying) savePosition();
@@ -322,7 +323,8 @@ public class MainActivity extends AppCompatActivity {
         if (index < 0) index = videos.size() - 1;
         if (index >= videos.size()) index = 0;
         current = index;
-        speed=prefs.getFloat(videoKey("speed"),prefs.getFloat("speed",1f));fitMode=prefs.getInt(videoKey("fit"),fitMode);subtitleOffsetMs=prefs.getLong(videoKey("subtitle_offset"),prefs.getLong("subtitle_offset",0));player.setPlaybackSpeed(speed);applyFitMode();
+        speed=prefs.getFloat(videoKey("speed"),prefs.getFloat("speed",1f));fitMode=prefs.getInt(videoKey("fit"),fitMode);subtitleOffsetMs=prefs.getLong(videoKey("subtitle_offset"),prefs.getLong("subtitle_offset",0));player.setPlaybackSpeed(speed);
+        applyFourKMode();applyFitMode();
         player.seekTo(index, resumeEnabled ? savedPosition(videos.get(index)) : 0);
         player.prepare();
         if (play) player.play();
@@ -521,15 +523,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(View view) {
-        String[] options={"Repeat playlist","Shuffle videos","Keep screen awake","Resume where I stopped","Swipe and double-tap controls","Software decoder"};
-        boolean[] checked={player.getRepeatMode()!=Player.REPEAT_MODE_OFF,player.getShuffleModeEnabled(),prefs.getBoolean("keep_awake",false),resumeEnabled,gesturesEnabled,softwareDecoder};
+        String[] options={"4K Ultra HD mode","Repeat playlist","Shuffle videos","Keep screen awake","Resume where I stopped","Swipe and double-tap controls","Software decoder"};
+        boolean[] checked={fourKMode,player.getRepeatMode()!=Player.REPEAT_MODE_OFF,player.getShuffleModeEnabled(),prefs.getBoolean("keep_awake",false),resumeEnabled,gesturesEnabled,softwareDecoder};
         new AlertDialog.Builder(this).setTitle("Settings").setMultiChoiceItems(options,checked,(d,w,on)->{
-            if(w==0){player.setRepeatMode(on?Player.REPEAT_MODE_ALL:Player.REPEAT_MODE_OFF);prefs.edit().putBoolean("repeat",on).apply();}
-            if(w==1){player.setShuffleModeEnabled(on);prefs.edit().putBoolean("shuffle",on).apply();}
-            if(w==2){prefs.edit().putBoolean("keep_awake",on).apply();applyKeepAwake(on);}
-            if(w==3){resumeEnabled=on;prefs.edit().putBoolean("resume",on).apply();}
-            if(w==4){gesturesEnabled=on;prefs.edit().putBoolean("gestures",on).apply();}
-            if(w==5){softwareDecoder=on;prefs.edit().putBoolean("software_decoder",on).apply();if(on)openVlcCodec();else{PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);}}
+            if(w==0){fourKMode=on;prefs.edit().putBoolean("four_k_mode",on).apply();applyFourKMode();toast(on?"4K Ultra HD mode on":"4K mode off");}
+            if(w==1){player.setRepeatMode(on?Player.REPEAT_MODE_ALL:Player.REPEAT_MODE_OFF);prefs.edit().putBoolean("repeat",on).apply();}
+            if(w==2){player.setShuffleModeEnabled(on);prefs.edit().putBoolean("shuffle",on).apply();}
+            if(w==3){prefs.edit().putBoolean("keep_awake",on).apply();applyKeepAwake(on);}
+            if(w==4){resumeEnabled=on;prefs.edit().putBoolean("resume",on).apply();}
+            if(w==5){gesturesEnabled=on;prefs.edit().putBoolean("gestures",on).apply();}
+            if(w==6){softwareDecoder=on;prefs.edit().putBoolean("software_decoder",on).apply();if(on)openVlcCodec();else{PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);}}
         }).setNeutralButton("Clear history",(d,w)->{clearHistoryOnly();toast("Playback history cleared");}).setPositiveButton("Done",null).show();
     }
 
@@ -538,6 +541,7 @@ public class MainActivity extends AppCompatActivity {
         resumeEnabled = prefs.getBoolean("resume", true);
         gesturesEnabled = prefs.getBoolean("gestures", true);
         softwareDecoder = prefs.getBoolean("software_decoder", false);
+        fourKMode = prefs.getBoolean("four_k_mode", true);
         audioOnly = prefs.getBoolean("audio_only",false);playerView.setAlpha(audioOnly?0f:1f);
         player.setPlaybackSpeed(speed);
         player.setRepeatMode(prefs.getBoolean("repeat", false) ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
@@ -546,6 +550,24 @@ public class MainActivity extends AppCompatActivity {
         applyKeepAwake(prefs.getBoolean("keep_awake", false));
         View speedIcon=findViewById(R.id.speedButton);speedIcon.setContentDescription("Playback speed "+speed+" times");setChromeActive(speedIcon,speed!=1f);
         View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"VLC software codec":"Hardware decoder");setChromeActive(decoderIcon,softwareDecoder);
+    }
+
+    private void applyFourKMode() {
+        if (localPlayer == null) return;
+        androidx.media3.common.TrackSelectionParameters.Builder parameters=localPlayer.getTrackSelectionParameters().buildUpon();
+        if(fourKMode) parameters.setMaxVideoSize(7680,4320).setForceHighestSupportedBitrate(true);
+        else parameters.setMaxVideoSize(1920,1080).setForceHighestSupportedBitrate(false);
+        localPlayer.setTrackSelectionParameters(parameters.build());
+        updateFourKBadge();
+    }
+
+    private void updateFourKBadge() {
+        TextView badge=findViewById(R.id.fourKBadge);if(badge==null)return;
+        androidx.media3.common.Format format=localPlayer==null?null:localPlayer.getVideoFormat();
+        boolean ultra=format!=null&&(format.width>=3840||format.height>=2160);
+        badge.setText(ultra?"4K UHD":fourKMode?"4K READY":"HD");
+        badge.setContentDescription(ultra?"4K Ultra HD video active":fourKMode?"4K Ultra HD mode ready":"HD playback mode");
+        badge.setVisibility(View.VISIBLE);
     }
 
     private void applyKeepAwake(boolean on) {

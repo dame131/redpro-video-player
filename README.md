@@ -8,6 +8,7 @@ The Android app uses Media3 for real local playback. It includes:
 
 - Multi-video picker with access to phone storage, Google Drive, and other Android file providers
 - Hardware-accelerated playback with Media3/ExoPlayer
+- 4K Ultra HD mode with highest-quality adaptive track selection and automatic 4K badge
 - Persistent playlist access and resume positions
 - Playback speed from 0.25× to 3×
 - Local SRT and WebVTT subtitles

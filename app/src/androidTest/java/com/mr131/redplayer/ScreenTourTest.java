@@ -60,7 +60,7 @@ public final class ScreenTourTest {
         capture("18-subtitle-choices", By.text("Download matching subtitles"), true);
         device.pressBack();
         clickResource("settingsButton");
-        capture("02-settings", By.text("Settings"), true);
+        capture("02-settings", By.text("4K Ultra HD mode"), true);
         device.pressBack();
         waitFor(By.res(PACKAGE, "root"), "home after Settings");
         clickResource("moreButton");
