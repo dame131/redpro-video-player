@@ -19,6 +19,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -41,9 +43,10 @@ public final class CoreFeatureTest {
         LocalCastServer server=new LocalCastServer(context,uri);String publicUrl=server.start();URL parsed=new URL(publicUrl);
         URL local=new URL("http","127.0.0.1",parsed.getPort(),parsed.getPath());
         HttpURLConnection connection=(HttpURLConnection)local.openConnection();connection.setRequestProperty("Range","bytes=10-29");
-        assertEquals(206,connection.getResponseCode());assertArrayEquals(Arrays.copyOfRange(plain,10,30),connection.getInputStream().readAllBytes());server.stop();
+        assertEquals(206,connection.getResponseCode());assertArrayEquals(Arrays.copyOfRange(plain,10,30),read(connection.getInputStream()));server.stop();
         encrypted.delete();restored.delete();video.delete();
     }
-    private byte[] read(File file)throws Exception{try(FileInputStream in=new FileInputStream(file)){return in.readAllBytes();}}
+    private byte[] read(File file)throws Exception{try(FileInputStream in=new FileInputStream(file)){return read(in);}}
+    private byte[] read(InputStream in)throws Exception{try(ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buffer=new byte[8192];int count;while((count=in.read(buffer))!=-1)out.write(buffer,0,count);return out.toByteArray();}}
     private boolean contains(byte[] data,byte[] part){outer:for(int i=0;i<=data.length-part.length;i++){for(int j=0;j<part.length;j++)if(data[i+j]!=part[j])continue outer;return true;}return false;}
 }
