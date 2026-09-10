@@ -45,9 +45,9 @@ final class VaultCrypto {
 
     static void decrypt(File source, File target) throws Exception {
         try (BufferedInputStream raw = new BufferedInputStream(new FileInputStream(source))) {
-            byte[] magic = raw.readNBytes(MAGIC.length);
+            byte[] magic = readExact(raw, MAGIC.length);
             if (!java.util.Arrays.equals(magic, MAGIC)) throw new SecurityException("Not an encrypted vault file");
-            byte[] iv = raw.readNBytes(IV_SIZE);
+            byte[] iv = readExact(raw, IV_SIZE);
             if (iv.length != IV_SIZE) throw new SecurityException("Vault file is damaged");
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(128, iv));
@@ -80,5 +80,16 @@ final class VaultCrypto {
         byte[] buffer = new byte[128 * 1024];
         int count;
         while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+    }
+
+    private static byte[] readExact(InputStream in, int length) throws Exception {
+        byte[] data = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            int count = in.read(data, offset, length - offset);
+            if (count == -1) break;
+            offset += count;
+        }
+        return offset == length ? data : java.util.Arrays.copyOf(data, offset);
     }
 }
