@@ -26,7 +26,7 @@ adb shell pm grant com.mr131.redplayer android.permission.READ_EXTERNAL_STORAGE 
 adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
-if ! grep -q 'OK (1 test)' proof/instrumentation.txt; then test_status=1; fi
+if ! grep -q 'OK (2 tests)' proof/instrumentation.txt; then test_status=1; fi
 
 adb exec-out run-as com.mr131.redplayer tar -C files/screenshots -cf - . | tar -C proof/screenshots -xf - || true
 cp -R app/build/reports/androidTests proof/reports/ || true
@@ -41,7 +41,8 @@ python tools/validate_screenshots.py proof/screenshots --required \
   09-video-library.png 10-system-video-picker.png 11-screen-08-subtitle-downloader.png \
   12-screen-12-technical-inspector.png 13-screen-18-history-recovery.png \
   14-equalizer-bass.png 15-sleep-timer.png 16-decoder-settings.png \
-  17-vault-pin.png 18-subtitle-choices.png 19-vlc-codec-player.png
+  17-vault-pin.png 18-subtitle-choices.png 19-vlc-codec-player.png \
+  20-network-address.png 21-backup-restore.png
 validation_status=$?
 
 if grep -Eq 'FATAL EXCEPTION.*com\.mr131\.redplayer|ANR in com\.mr131\.redplayer' proof/logcat.txt; then

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
  <uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/><uses-permission android:name="android.permission.WAKE_LOCK"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/><uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
- <application android:theme="@style/Theme.RedPlayer" android:label="131 Red Player" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:allowBackup="false" android:supportsRtl="true">
+ <application android:theme="@style/Theme.RedPlayer" android:label="131 Red Player" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="true">
   <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME" android:value="com.mr131.redplayer.CastOptionsProvider"/>
   <activity android:name=".LibraryActivity" android:exported="false"/>
   <activity android:name=".VaultActivity" android:exported="false"/>
@@ -8,6 +8,8 @@
   <activity android:name=".SubtitleDownloadActivity" android:exported="false"/>
   <activity android:name=".HistoryActivity" android:exported="false"/>
   <activity android:name=".TechnicalInspectorActivity" android:exported="false"/>
+  <activity android:name=".NetworkSourcesActivity" android:exported="false"/>
+  <activity android:name=".BackupActivity" android:exported="false"/>
   <activity android:name=".VlcPlayerActivity" android:exported="false" android:supportsPictureInPicture="true" android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"/>
   <service android:name=".PlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true"><intent-filter><action android:name="androidx.media3.session.MediaSessionService"/></intent-filter></service>
   <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.files" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/></provider>

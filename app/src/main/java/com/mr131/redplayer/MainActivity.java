@@ -5,23 +5,29 @@ import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.ContentValues;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.media.AudioManager;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
+import android.provider.MediaStore;
 import android.util.Rational;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ContextThemeWrapper;
 import android.view.WindowManager;
+import android.view.TextureView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import androidx.appcompat.widget.PopupMenu;
 import android.widget.TextView;
@@ -60,6 +66,7 @@ import java.util.concurrent.Executor;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -87,10 +94,15 @@ public class MainActivity extends AppCompatActivity {
     private TextView gestureOverlay;
     private TextView positionText, durationText;
     private SeekBar playerSeek;
+    private ImageView seekPreview;
+    private int previewRequest;
     private View playerControls;
     private Uri subtitleUri;
     private long subtitleOffsetMs = 0;
     private boolean softwareDecoder = false;
+    private boolean audioOnly = false;
+    private LocalCastServer localCastServer;
+    private String lastAutomaticFallback="";
     private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
@@ -113,6 +125,12 @@ public class MainActivity extends AppCompatActivity {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null)
                     addVideos(Collections.singletonList(result.getData().getData()));
             });
+    private final ActivityResultLauncher<Intent> networkLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null){
+                    Uri uri=result.getData().getData();addVideos(Collections.singletonList(uri));playIndex(videos.size()-1,true);String scheme=uri.getScheme();if("smb".equalsIgnoreCase(scheme)||"ftp".equalsIgnoreCase(scheme)||"ftps".equalsIgnoreCase(scheme))openVlcCodec();
+                }
+            });
     private final ActivityResultLauncher<Intent> downloadedSubtitleLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addSubtitle(result.getData().getData());});
     private final ActivityResultLauncher<Intent> historyLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addVideos(Collections.singletonList(result.getData().getData()));});
 
@@ -130,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
         positionText = findViewById(R.id.positionText);
         durationText = findViewById(R.id.durationText);
         playerSeek = findViewById(R.id.playerSeek);
+        seekPreview = findViewById(R.id.seekPreview);
         playerControls = findViewById(R.id.playerControls);
         wireButtons();
         startIconEntrance();
@@ -145,13 +164,13 @@ public class MainActivity extends AppCompatActivity {
             else toast("Playback service could not start");
             return;
         }
-        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());
+        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());if(videos.isEmpty())loadSavedPlaylist();
     }
 
     private void wireButtons() {
         for(int id:chromeIconIds){View icon=findViewById(id);if(icon!=null)icon.setBackgroundColor(android.graphics.Color.TRANSPARENT);}
         bindAnimated(R.id.openButton,v -> libraryLauncher.launch(new Intent(this, LibraryActivity.class)));
-        bindAnimated(R.id.networkButton,v -> showNetworkStream());
+        bindAnimated(R.id.networkButton,v -> networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class)));
         bindAnimated(R.id.cloudButton,v -> cloudLauncher.launch(new Intent(this, CloudImportActivity.class)));
         bindAnimated(R.id.decoderButton,this::toggleDecoder);
         bindAnimated(R.id.subtitleButton,v -> {if(current<0)toast("Open a video first");else showSubtitleChoices();});
@@ -171,9 +190,9 @@ public class MainActivity extends AppCompatActivity {
         bindAnimated(R.id.centerPlayButton,v -> {if(player!=null){if(player.isPlaying())player.pause();else player.play();}});
         bindAnimated(R.id.forwardButton,v -> {if(player!=null)player.seekTo(Math.min(Math.max(0,player.getDuration()),player.getCurrentPosition()+10_000));});
         playerSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            @Override public void onProgressChanged(SeekBar bar,int value,boolean fromUser){if(fromUser&&player!=null&&player.getDuration()>0)player.seekTo(player.getDuration()*value/1000L);}
-            @Override public void onStartTrackingTouch(SeekBar bar){}
-            @Override public void onStopTrackingTouch(SeekBar bar){}
+            @Override public void onProgressChanged(SeekBar bar,int value,boolean fromUser){if(fromUser&&player!=null&&player.getDuration()>0){long target=player.getDuration()*value/1000L;player.seekTo(target);loadSeekPreview(target);}}
+            @Override public void onStartTrackingTouch(SeekBar bar){seekPreview.setVisibility(View.VISIBLE);}
+            @Override public void onStopTrackingTouch(SeekBar bar){previewRequest++;seekPreview.setVisibility(View.GONE);}
         });
     }
 
@@ -226,12 +245,12 @@ public class MainActivity extends AppCompatActivity {
             CastContext context=CastContext.getSharedInstance(this);CastButtonFactory.setUpMediaRouteButton(getApplicationContext(),(MediaRouteButton)findViewById(R.id.castButton));castPlayer=new CastPlayer(context);
             castPlayer.setSessionAvailabilityListener(new SessionAvailabilityListener(){
                 @Override public void onCastSessionAvailable(){
-                    if(current<0||current>=videos.size()){toast("Choose a video link first");return;}String scheme=videos.get(current).getScheme();
-                    if(!"http".equalsIgnoreCase(scheme)&&!"https".equalsIgnoreCase(scheme)){toast("Casting needs a network or cloud-accessible link");return;}
-                    long position=localPlayer.getCurrentPosition();boolean playing=localPlayer.getPlayWhenReady();localPlayer.pause();ArrayList<MediaItem> items=new ArrayList<>();for(int i=0;i<videos.size();i++)items.add(new MediaItem.Builder().setUri(videos.get(i)).setTag(names.get(i)).build());
-                    castPlayer.setMediaItems(items,Math.max(0,current),Math.max(0,position));castPlayer.prepare();castPlayer.setPlayWhenReady(playing);player=castPlayer;playerView.setPlayer(player);toast("Casting to TV");
+                    if(current<0||current>=videos.size()){toast("Choose a video first");return;}Uri source=videos.get(current);String scheme=source.getScheme();Uri castUri=source;
+                    try{if(!"http".equalsIgnoreCase(scheme)&&!"https".equalsIgnoreCase(scheme)){if(localCastServer!=null)localCastServer.stop();localCastServer=new LocalCastServer(MainActivity.this,source);castUri=Uri.parse(localCastServer.start());}}catch(Exception e){toast(e.getMessage()==null?"Local casting could not start":e.getMessage());return;}
+                    long position=localPlayer.getCurrentPosition();boolean playing=localPlayer.getPlayWhenReady();localPlayer.pause();MediaItem item=new MediaItem.Builder().setUri(castUri).setTag(names.get(current)).build();
+                    castPlayer.setMediaItem(item,Math.max(0,position));castPlayer.prepare();castPlayer.setPlayWhenReady(playing);player=castPlayer;playerView.setPlayer(player);toast("Casting to TV");
                 }
-                @Override public void onCastSessionUnavailable(){if(player==castPlayer){int index=castPlayer.getCurrentMediaItemIndex();long position=castPlayer.getCurrentPosition();boolean playing=castPlayer.getPlayWhenReady();castPlayer.stop();player=localPlayer;playerView.setPlayer(player);if(index>=0&&index<localPlayer.getMediaItemCount())localPlayer.seekTo(index,position);localPlayer.setPlayWhenReady(playing);toast("Playing on phone");}}
+                @Override public void onCastSessionUnavailable(){if(localCastServer!=null){localCastServer.stop();localCastServer=null;}if(player==castPlayer){long position=castPlayer.getCurrentPosition();boolean playing=castPlayer.getPlayWhenReady();castPlayer.stop();player=localPlayer;playerView.setPlayer(player);if(current>=0&&current<localPlayer.getMediaItemCount())localPlayer.seekTo(current,position);localPlayer.setPlayWhenReady(playing);toast("Playing on phone");}}
             });
         } catch(Exception e){findViewById(R.id.castButton).setVisibility(View.GONE);}
     }
@@ -251,6 +270,7 @@ public class MainActivity extends AppCompatActivity {
             }
             @Override public void onPlayerError(@NonNull PlaybackException error) {
                 prefs.edit().putString("last_error",error.getErrorCodeName()+": "+error.getMessage()).apply();
+                String failed=current>=0&&current<videos.size()?videos.get(current).toString():"";if(!failed.isEmpty()&&!failed.equals(lastAutomaticFallback)){lastAutomaticFallback=failed;toast("Switching to VLC codec…");openVlcCodec();return;}
                 new AlertDialog.Builder(MainActivity.this).setTitle("Playback recovery").setMessage("The phone codec could not play this video. Use the built-in VLC codec, retry, or skip it.").setPositiveButton("VLC CODEC",(d,w)->openVlcCodec()).setNeutralButton("Retry",(d,w)->{player.prepare();player.play();}).setNegativeButton("Next video",(d,w)->playIndex(current+1,true)).show();
             }
         });
@@ -295,12 +315,14 @@ public class MainActivity extends AppCompatActivity {
         player.setMediaItems(media, Math.max(0, oldIndex), Math.max(0, oldPosition));
         player.prepare();
     }
+    private void loadSavedPlaylist(){java.util.Set<String> saved=prefs.getStringSet("saved_playlist",java.util.Collections.emptySet());for(String value:saved){Uri uri=Uri.parse(value);if(!videos.contains(uri)){videos.add(uri);names.add(displayName(uri));}}if(!videos.isEmpty()){rebuildPlaylist();playIndex(0,false);}}
 
     private void playIndex(int index, boolean play) {
         if (videos.isEmpty()) { toast("Add videos first"); return; }
         if (index < 0) index = videos.size() - 1;
         if (index >= videos.size()) index = 0;
         current = index;
+        speed=prefs.getFloat(videoKey("speed"),prefs.getFloat("speed",1f));fitMode=prefs.getInt(videoKey("fit"),fitMode);subtitleOffsetMs=prefs.getLong(videoKey("subtitle_offset"),prefs.getLong("subtitle_offset",0));player.setPlaybackSpeed(speed);applyFitMode();
         player.seekTo(index, resumeEnabled ? savedPosition(videos.get(index)) : 0);
         player.prepare();
         if (play) player.play();
@@ -332,7 +354,7 @@ public class MainActivity extends AppCompatActivity {
         final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×"};
         final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f};
         new AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(labels, indexOf(values, speed), (d, which) -> {
-            speed = values[which]; player.setPlaybackSpeed(speed); prefs.edit().putFloat("speed", speed).apply(); anchor.setContentDescription("Playback speed " + labels[which]); setChromeActive(anchor,speed!=1f); d.dismiss();
+            speed = values[which]; player.setPlaybackSpeed(speed); SharedPreferences.Editor edit=prefs.edit().putFloat("speed",speed);if(current>=0)edit.putFloat(videoKey("speed"),speed);edit.apply(); anchor.setContentDescription("Playback speed " + labels[which]); setChromeActive(anchor,speed!=1f); d.dismiss();
         }).show();
     }
 
@@ -342,9 +364,10 @@ public class MainActivity extends AppCompatActivity {
         int[] modes = {AspectRatioFrameLayout.RESIZE_MODE_FIT, AspectRatioFrameLayout.RESIZE_MODE_ZOOM, AspectRatioFrameLayout.RESIZE_MODE_FILL};
         String[] labels = {"Fit inside", "Fill screen", "Stretch"};
         fitMode = (fitMode + 1) % modes.length;
-        playerView.setResizeMode(modes[fitMode]);
+        playerView.setResizeMode(modes[fitMode]);if(current>=0)prefs.edit().putInt(videoKey("fit"),fitMode).apply();
         toast(labels[fitMode]);
     }
+    private void applyFitMode(){int[] modes={AspectRatioFrameLayout.RESIZE_MODE_FIT,AspectRatioFrameLayout.RESIZE_MODE_ZOOM,AspectRatioFrameLayout.RESIZE_MODE_FILL};playerView.setResizeMode(modes[Math.max(0,Math.min(2,fitMode))]);}
 
     private void setAB(View view) {
         if (current < 0) { toast("Open a video first"); return; }
@@ -433,10 +456,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMore(View anchor) {
         PopupMenu menu = new PopupMenu(new ContextThemeWrapper(this, R.style.ThemeOverlay_RedPlayer_Popup), anchor);
-        menu.getMenu().add("VLC codec player");menu.getMenu().add("Audio tracks"); menu.getMenu().add("Equalizer & Bass"); menu.getMenu().add("Subtitle timing"); menu.getMenu().add("Download subtitles"); menu.getMenu().add("History & recovery"); menu.getMenu().add("Private vault"); menu.getMenu().add("Rotate screen"); menu.getMenu().add("Sleep timer");
+        menu.getMenu().add("Audio tracks");menu.getMenu().add("Equalizer & Bass");menu.getMenu().add("Subtitle timing");menu.getMenu().add("Download subtitles");menu.getMenu().add("History & recovery");menu.getMenu().add("Private vault");menu.getMenu().add("Tools & storage");menu.getMenu().add("Rotate screen");menu.getMenu().add("Sleep timer");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
-            if(title.equals("VLC codec player"))openVlcCodec();
+            if(title.equals("Tools & storage"))showTools();
             if(title.equals("Audio tracks"))showAudioTracks();
             if(title.equals("Equalizer & Bass"))showEqualizer();
             if(title.equals("Subtitle timing"))showSubtitleTiming();
@@ -448,6 +471,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }); menu.show();
     }
+    private void showTools(){String[] items={"VLC codec player","Audio-only mode","Save video screenshot","Backup & restore","Network sources"};new AlertDialog.Builder(this).setTitle("Tools & storage").setItems(items,(d,w)->{if(w==0)openVlcCodec();if(w==1)toggleAudioOnly();if(w==2)saveVideoScreenshot();if(w==3)startActivity(new Intent(this,BackupActivity.class));if(w==4)networkLauncher.launch(new Intent(this,NetworkSourcesActivity.class));}).setNegativeButton("Close",null).show();}
 
     private void showAudioTracks() {
         Tracks tracks=player.getCurrentTracks(); ArrayList<Tracks.Group> groups=new ArrayList<>(); ArrayList<Integer> trackIndexes=new ArrayList<>(); ArrayList<String> labels=new ArrayList<>();
@@ -477,7 +501,7 @@ public class MainActivity extends AppCompatActivity {
         if(subtitleUri==null){toast("Load an SRT subtitle first");return;}
         String[] labels={"2 seconds earlier","1 second earlier","0.5 seconds earlier","No offset","0.5 seconds later","1 second later","2 seconds later"};
         long[] values={-2000,-1000,-500,0,500,1000,2000};
-        new AlertDialog.Builder(this).setTitle("Subtitle timing").setItems(labels,(d,w)->{subtitleOffsetMs=values[w];prefs.edit().putLong("subtitle_offset",subtitleOffsetMs).apply();applySubtitle();}).show();
+        new AlertDialog.Builder(this).setTitle("Subtitle timing").setItems(labels,(d,w)->{subtitleOffsetMs=values[w];SharedPreferences.Editor edit=prefs.edit().putLong("subtitle_offset",subtitleOffsetMs);if(current>=0)edit.putLong(videoKey("subtitle_offset"),subtitleOffsetMs);edit.apply();applySubtitle();}).show();
     }
 
     private Uri shiftSrt(Uri source,long offset) {
@@ -514,6 +538,7 @@ public class MainActivity extends AppCompatActivity {
         resumeEnabled = prefs.getBoolean("resume", true);
         gesturesEnabled = prefs.getBoolean("gestures", true);
         softwareDecoder = prefs.getBoolean("software_decoder", false);
+        audioOnly = prefs.getBoolean("audio_only",false);playerView.setAlpha(audioOnly?0f:1f);
         player.setPlaybackSpeed(speed);
         player.setRepeatMode(prefs.getBoolean("repeat", false) ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
         player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));
@@ -546,6 +571,9 @@ public class MainActivity extends AppCompatActivity {
         String details=names.get(current)+"\n\nDuration: "+formatTime(player.getDuration())+"\nResolution: "+(f==null?"Unknown":f.width+" × "+f.height)+"\nFrame rate: "+(f==null||f.frameRate<=0?"Unknown":String.format(Locale.US,"%.2f fps",f.frameRate))+"\nVideo bitrate: "+(f==null||f.bitrate<=0?"Unknown":(f.bitrate/1000)+" kbps")+"\nVideo codec: "+(f==null?"Unknown":(f.codecs==null?f.sampleMimeType:f.codecs))+"\nAudio codec: "+(audio==null?"Unknown":(audio.codecs==null?audio.sampleMimeType:audio.codecs))+"\nAudio channels: "+(audio==null||audio.channelCount<=0?"Unknown":audio.channelCount)+"\nSample rate: "+(audio==null||audio.sampleRate<=0?"Unknown":audio.sampleRate+" Hz")+"\nAudio bitrate: "+(audio==null||audio.bitrate<=0?"Unknown":(audio.bitrate/1000)+" kbps")+"\nDecoder: "+(softwareDecoder?"Software":"Hardware")+"\nLocation: "+videos.get(current);
         startActivity(new Intent(this,TechnicalInspectorActivity.class).putExtra("details",details));
     }
+    private void toggleAudioOnly(){audioOnly=!audioOnly;playerView.setAlpha(audioOnly?0f:1f);prefs.edit().putBoolean("audio_only",audioOnly).apply();toast(audioOnly?"Audio-only mode on":"Video restored");}
+    private void saveVideoScreenshot(){if(current<0){toast("Open a video first");return;}View surface=playerView.getVideoSurfaceView();if(!(surface instanceof TextureView)){toast("Screenshot is unavailable for this video");return;}Bitmap bitmap=((TextureView)surface).getBitmap();if(bitmap==null){toast("Video frame is not ready");return;}new Thread(()->{try{ContentValues values=new ContentValues();values.put(MediaStore.Images.Media.DISPLAY_NAME,"131-player-"+System.currentTimeMillis()+".png");values.put(MediaStore.Images.Media.MIME_TYPE,"image/png");if(android.os.Build.VERSION.SDK_INT>=29)values.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/131 Red Player");Uri target=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);if(target==null)throw new Exception();try(OutputStream out=getContentResolver().openOutputStream(target)){if(out==null||!bitmap.compress(Bitmap.CompressFormat.PNG,100,out))throw new Exception();}runOnUiThread(()->toast("Video screenshot saved"));}catch(Exception e){runOnUiThread(()->toast("Screenshot could not be saved"));}finally{bitmap.recycle();}},"frame-save").start();}
+    private void loadSeekPreview(long position){if(current<0||current>=videos.size())return;int request=++previewRequest;Uri uri=videos.get(current);new Thread(()->{MediaMetadataRetriever r=new MediaMetadataRetriever();try{r.setDataSource(this,uri);Bitmap frame=r.getFrameAtTime(position*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);if(frame!=null)runOnUiThread(()->{if(request==previewRequest&&seekPreview.getVisibility()==View.VISIBLE)seekPreview.setImageBitmap(frame);else frame.recycle();});}catch(Exception ignored){}finally{try{r.release();}catch(Exception ignored){}}},"seek-preview").start();}
 
     private String displayName(Uri uri) {
         try (android.database.Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst())return c.getString(0);}catch(Exception ignored){}
@@ -553,11 +581,12 @@ public class MainActivity extends AppCompatActivity {
     }
     private String formatTime(long ms){if(ms<0)return"Unknown";long s=ms/1000;return String.format(Locale.US,"%d:%02d:%02d",s/3600,(s/60)%60,s%60);}
     private long savedPosition(Uri uri){return prefs.getLong("pos:"+uri,0);}
+    private String videoKey(String setting){return setting+":"+(current>=0&&current<videos.size()?videos.get(current):"none");}
     private void savePosition(){if(current>=0&&current<videos.size()){long position=player.getCurrentPosition();prefs.edit().putLong("pos:"+videos.get(current),position).apply();try{JSONArray source=new JSONArray(prefs.getString("history","[]"));JSONArray next=new JSONArray();JSONObject item=new JSONObject().put("uri",videos.get(current).toString()).put("name",names.get(current)).put("position",position).put("watched",System.currentTimeMillis());next.put(item);for(int i=0;i<source.length()&&next.length()<50;i++){JSONObject old=source.optJSONObject(i);if(old!=null&&!old.optString("uri").equals(videos.get(current).toString()))next.put(old);}prefs.edit().putString("history",next.toString()).apply();}catch(Exception ignored){}}}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_SHORT).show();}
     private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(Collections.singletonList(intent.getData()));}
 
     @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);playerControls.setVisibility(inPip?View.GONE:View.VISIBLE);}
     @Override protected void onStop(){super.onStop();if(!isInPictureInPictureMode())savePosition();}
-    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);playerView.setPlayer(null);if(castPlayer!=null)castPlayer.release();super.onDestroy();}
+    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);playerView.setPlayer(null);if(localCastServer!=null)localCastServer.stop();if(castPlayer!=null)castPlayer.release();super.onDestroy();}
 }

@@ -5,4 +5,5 @@
     <cache-path name="subtitles" path="subtitles/"/>
     <cache-path name="proof_media" path="proof-media/"/>
     <cache-path name="vault_playback" path="vault-playback/"/>
+    <cache-path name="temporary_media" path="."/>
 </paths>

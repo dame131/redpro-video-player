@@ -77,8 +77,10 @@ public final class ScreenTourTest {
         capture("06-playback-speed", By.text("Playback speed"), true);
         device.pressBack();
         clickScrollableResource(R.id.networkButton);
-        capture("07-network-stream", By.text("Open Network Stream"), true);
-        device.pressBack();
+        capture("07-network-stream", By.desc("Network Sources Screen"), true);
+        click(By.text("ADD NETWORK ADDRESS"),"add network address");
+        capture("20-network-address",By.text("Add network address"),true);
+        device.pressBack();device.pressBack();
         clickScrollableResource(R.id.cloudButton);
         capture("08-cloud-import", By.desc("Cloud Import Screen 17"), true);
         device.pressBack();
@@ -104,6 +106,8 @@ public final class ScreenTourTest {
         capture("17-vault-pin", By.text("Create vault PIN"), true);
         device.pressBack();startVlcScreen();
         capture("19-vlc-codec-player", By.desc("VLC Codec Player Ready"), true);
+        startScreen(BackupActivity.class);
+        capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
     }
 
     private void startScreen(Class<?> screen) {
