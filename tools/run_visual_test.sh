@@ -42,7 +42,7 @@ python tools/validate_screenshots.py proof/screenshots --required \
   12-screen-12-technical-inspector.png 13-screen-18-history-recovery.png \
   14-equalizer-bass.png 15-sleep-timer.png 16-decoder-settings.png \
   17-vault-pin.png 18-subtitle-choices.png 19-vlc-codec-player.png \
-  20-network-address.png 21-backup-restore.png 22-advanced-playback.png 23-video-trash.png 24-music-library.png 25-playback-lab.png
+  20-network-address.png 21-backup-restore.png 22-advanced-playback.png 23-video-trash.png 24-music-library.png 25-playback-lab.png 26-video-bookmarks.png 27-video-transform.png
 validation_status=$?
 
 if grep -Eq 'FATAL EXCEPTION.*com\.mr131\.redplayer|ANR in com\.mr131\.redplayer' proof/logcat.txt; then

@@ -109,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean audioOnly = false;
     private boolean muted = false;
     private float videoScale = 1f;
+    private boolean mirrorHorizontal=false, mirrorVertical=false;
+    private int videoRotation=0;
     private ScaleGestureDetector scaleDetector;
     private boolean fourKMode = true;
     private LocalCastServer localCastServer;
@@ -144,6 +146,7 @@ public class MainActivity extends AppCompatActivity {
             });
     private final ActivityResultLauncher<Intent> downloadedSubtitleLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addSubtitle(result.getData().getData());});
     private final ActivityResultLauncher<Intent> historyLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null)addVideos(Collections.singletonList(result.getData().getData()));});
+    private final ActivityResultLauncher<Intent> bookmarkLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {if(result.getResultCode()==RESULT_OK&&result.getData()!=null&&result.getData().getData()!=null){Uri uri=result.getData().getData();long position=result.getData().getLongExtra("position",0);addVideos(Collections.singletonList(uri));int index=videos.indexOf(uri);if(index>=0){playIndex(index,true);player.seekTo(position);}}});
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         SplashScreen.installSplashScreen(this);
@@ -404,7 +407,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void wireGestures() {
         scaleDetector = new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
-            @Override public boolean onScale(ScaleGestureDetector detector){if(controlsLocked||!gesturesEnabled)return false;videoScale=Math.max(1f,Math.min(5f,videoScale*detector.getScaleFactor()));View surface=playerView.getVideoSurfaceView();if(surface!=null){surface.setPivotX(detector.getFocusX());surface.setPivotY(detector.getFocusY());surface.setScaleX(videoScale);surface.setScaleY(videoScale);}showGesture(String.format(Locale.US,"Zoom %.1f×",videoScale));return true;}
+            @Override public boolean onScale(ScaleGestureDetector detector){if(controlsLocked||!gesturesEnabled)return false;videoScale=Math.max(1f,Math.min(5f,videoScale*detector.getScaleFactor()));View surface=playerView.getVideoSurfaceView();if(surface!=null){surface.setPivotX(detector.getFocusX());surface.setPivotY(detector.getFocusY());surface.setScaleX(mirrorHorizontal?-videoScale:videoScale);surface.setScaleY(mirrorVertical?-videoScale:videoScale);}showGesture(String.format(Locale.US,"Zoom %.1f×",videoScale));return true;}
         });
         AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
         GestureDetector detector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
@@ -471,11 +474,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMore(View anchor) {
         PopupMenu menu = new PopupMenu(new ContextThemeWrapper(this, R.style.ThemeOverlay_RedPlayer_Popup), anchor);
-        menu.getMenu().add("Audio tracks");menu.getMenu().add("Equalizer & Bass");menu.getMenu().add("Subtitle timing");menu.getMenu().add("Download subtitles");menu.getMenu().add("History & recovery");menu.getMenu().add("Private vault");menu.getMenu().add("Tools & storage");menu.getMenu().add("Rotate screen");menu.getMenu().add("Sleep timer");
+        menu.getMenu().add("Audio tracks");menu.getMenu().add("Add video bookmark");menu.getMenu().add("Video bookmarks");menu.getMenu().add("Equalizer & Bass");menu.getMenu().add("Subtitle timing");menu.getMenu().add("Download subtitles");menu.getMenu().add("History & recovery");menu.getMenu().add("Private vault");menu.getMenu().add("Tools & storage");menu.getMenu().add("Rotate screen");menu.getMenu().add("Sleep timer");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
             if(title.equals("Tools & storage"))showTools();
             if(title.equals("Audio tracks"))showAudioTracks();
+            if(title.equals("Add video bookmark"))saveVideoBookmark();
+            if(title.equals("Video bookmarks"))bookmarkLauncher.launch(new Intent(this,BookmarkActivity.class));
             if(title.equals("Equalizer & Bass"))showEqualizer();
             if(title.equals("Subtitle timing"))showSubtitleTiming();
             if(title.equals("Download subtitles")){if(current<0)toast("Open a video first");else downloadedSubtitleLauncher.launch(new Intent(this,SubtitleDownloadActivity.class).putExtra("video_name",names.get(current)));}
@@ -493,9 +498,12 @@ public class MainActivity extends AppCompatActivity {
     private void importPlaylistFile(Uri uri){if(uri==null)return;new Thread(()->{int added=0;try(BufferedReader reader=new BufferedReader(new InputStreamReader(getContentResolver().openInputStream(uri),StandardCharsets.UTF_8))){String line;while((line=reader.readLine())!=null){line=line.trim();if(line.isEmpty()||line.startsWith("#"))continue;Uri media=Uri.parse(line);String scheme=media.getScheme();if(scheme==null){try{media=Uri.withAppendedPath(uri.buildUpon().path(uri.getPath()==null?"":uri.getPath().substring(0,Math.max(0,uri.getPath().lastIndexOf('/')+1))).build(),line);}catch(Exception ignored){continue;}}final Uri item=media;runOnUiThread(()->addVideos(Collections.singletonList(item)));added++;}}catch(Exception e){runOnUiThread(()->toast("Playlist could not be read"));return;}int count=added;runOnUiThread(()->{toast(count+" playlist items imported");if(count>0)playIndex(Math.max(0,videos.size()-count),false);});},"playlist-import").start();}
 
     private void showAdvancedPlayback(){
-        String[] items={"Quick mute","Frame backward","Frame forward","Jump to time","Reset pinch zoom","Video enhancement filters","Subtitle appearance","Preferred audio & subtitle language","Equalizer presets"};
-        new AlertDialog.Builder(this).setTitle("Advanced playback").setItems(items,(d,w)->{if(w==0)toggleMute();if(w==1)stepFrame(-1);if(w==2)stepFrame(1);if(w==3)showJumpToTime();if(w==4)resetZoom();if(w==5)showVideoFilters();if(w==6)showSubtitleAppearance();if(w==7)showPreferredLanguages();if(w==8)showEqualizerPresets();}).setNegativeButton("Close",null).show();
+        String[] items={"Quick mute","Frame backward","Frame forward","Jump to time","Reset pinch zoom","Mirror, flip & rotate video","Video enhancement filters","Subtitle appearance","Preferred audio & subtitle language","Equalizer presets"};
+        new AlertDialog.Builder(this).setTitle("Advanced playback").setItems(items,(d,w)->{if(w==0)toggleMute();if(w==1)stepFrame(-1);if(w==2)stepFrame(1);if(w==3)showJumpToTime();if(w==4)resetZoom();if(w==5)showVideoTransform();if(w==6)showVideoFilters();if(w==7)showSubtitleAppearance();if(w==8)showPreferredLanguages();if(w==9)showEqualizerPresets();}).setNegativeButton("Close",null).show();
     }
+    private void saveVideoBookmark(){if(player==null||current<0){toast("Open a video first");return;}EditText input=new EditText(this);input.setHint("Bookmark name");input.setText("Bookmark "+formatTime(player.getCurrentPosition()));input.setTextColor(android.graphics.Color.WHITE);new AlertDialog.Builder(this).setTitle("Save video bookmark").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{try{JSONArray old=new JSONArray(prefs.getString("video_bookmarks","[]"));JSONArray next=new JSONArray();JSONObject item=new JSONObject().put("label",input.getText().toString().trim()).put("name",names.get(current)).put("uri",videos.get(current).toString()).put("position",player.getCurrentPosition()).put("created",System.currentTimeMillis());next.put(item);for(int i=0;i<old.length()&&next.length()<100;i++)next.put(old.get(i));prefs.edit().putString("video_bookmarks",next.toString()).apply();toast("Video bookmark saved");}catch(Exception e){toast("Bookmark could not be saved");}}).show();}
+    private void showVideoTransform(){String[] labels={"Mirror left/right","Flip top/bottom","Rotate 90°","Reset video transform"};new AlertDialog.Builder(this).setTitle("Mirror, flip & rotate video").setItems(labels,(d,w)->{if(w==0)mirrorHorizontal=!mirrorHorizontal;if(w==1)mirrorVertical=!mirrorVertical;if(w==2)videoRotation=(videoRotation+90)%360;if(w==3){mirrorHorizontal=false;mirrorVertical=false;videoRotation=0;}applyVideoTransform();}).setNegativeButton("Close",null).show();}
+    private void applyVideoTransform(){View surface=playerView.getVideoSurfaceView();if(surface==null)return;surface.setRotation(videoRotation);surface.setScaleX(mirrorHorizontal?-videoScale:videoScale);surface.setScaleY(mirrorVertical?-videoScale:videoScale);toast("Video transform applied");}
     private void toggleMute(){AudioManager a=(AudioManager)getSystemService(AUDIO_SERVICE);muted=!muted;a.adjustStreamVolume(AudioManager.STREAM_MUSIC,muted?AudioManager.ADJUST_MUTE:AudioManager.ADJUST_UNMUTE,0);toast(muted?"Quick mute on":"Sound restored");}
     private void stepFrame(int direction){if(player==null||current<0){toast("Open a video first");return;}player.pause();long step=33;androidx.media3.common.Format f=localPlayer.getVideoFormat();if(f!=null&&f.frameRate>0)step=Math.max(1,Math.round(1000f/f.frameRate));player.seekTo(Math.max(0,Math.min(player.getDuration(),player.getCurrentPosition()+direction*step)));showGesture(direction<0?"Previous frame":"Next frame");}
     private void showJumpToTime(){if(player==null||current<0){toast("Open a video first");return;}EditText input=new EditText(this);input.setHint("HH:MM:SS or seconds");input.setSingleLine(true);input.setTextColor(android.graphics.Color.WHITE);input.setHintTextColor(android.graphics.Color.LTGRAY);new AlertDialog.Builder(this).setTitle("Jump to time").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Jump",(d,w)->{try{String[] p=input.getText().toString().trim().split(":");long seconds=0;for(String part:p)seconds=seconds*60+Long.parseLong(part);player.seekTo(Math.max(0,Math.min(player.getDuration(),seconds*1000)));}catch(Exception e){toast("Enter a valid time");}}).show();}
