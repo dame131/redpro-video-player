@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.util.Rational;
 import android.view.Gravity;
 import android.view.View;
@@ -29,6 +30,7 @@ import java.util.Locale;
 public final class VlcPlayerActivity extends AppCompatActivity {
     private LibVLC vlc;
     private MediaPlayer player;
+    private ParcelFileDescriptor sourceFd;
     private VLCVideoLayout video;
     private SeekBar seek;
     private TextView time;
@@ -43,7 +45,13 @@ public final class VlcPlayerActivity extends AppCompatActivity {
         ArrayList<String> options=new ArrayList<>();
         options.add("--network-caching=1500");options.add("--clock-jitter=0");options.add("--clock-synchro=0");
         vlc=new LibVLC(this,options);player=new MediaPlayer(vlc);player.attachViews(video,null,true,false);
-        Media media=new Media(vlc,uri);media.setHWDecoderEnabled(false,false);media.addOption(":codec=all");
+        Media media;
+        try{
+            String scheme=uri.getScheme();
+            if("content".equalsIgnoreCase(scheme)){sourceFd=getContentResolver().openFileDescriptor(uri,"r");if(sourceFd==null)throw new Exception("File is unavailable");media=new Media(vlc,sourceFd.getFileDescriptor());}
+            else media=new Media(vlc,uri);
+        }catch(Exception error){Toast.makeText(this,"VLC could not open this file",Toast.LENGTH_LONG).show();finish();return;}
+        media.setHWDecoderEnabled(false,false);media.addOption(":codec=all");
         player.setMedia(media);media.release();
         player.setEventListener(event->{if(event.type==MediaPlayer.Event.EncounteredError)runOnUiThread(()->Toast.makeText(this,"VLC could not decode this file",Toast.LENGTH_LONG).show());if(event.type==MediaPlayer.Event.EndReached)runOnUiThread(this::finish);});
         player.play();long start=getIntent().getLongExtra("position",0);if(start>0)handler.postDelayed(()->player.setTime(start),500);handler.post(progress);
@@ -68,5 +76,5 @@ public final class VlcPlayerActivity extends AppCompatActivity {
     private String format(long ms){long s=ms/1000;return String.format(Locale.US,"%d:%02d",s/60,s%60);}
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
     @Override public void onPictureInPictureModeChanged(boolean pip,android.content.res.Configuration c){super.onPictureInPictureModeChanged(pip,c);controls.setVisibility(pip?View.GONE:View.VISIBLE);}
-    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);if(player!=null){player.stop();player.detachViews();player.release();}if(vlc!=null)vlc.release();super.onDestroy();}
+    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);if(player!=null){player.stop();player.detachViews();player.release();}if(vlc!=null)vlc.release();if(sourceFd!=null)try{sourceFd.close();}catch(Exception ignored){}super.onDestroy();}
 }
