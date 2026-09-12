@@ -97,6 +97,10 @@ test_install_status=${PIPESTATUS[0]}
 test "$test_install_status" -eq 0 || exit 12
 timeout 15s adb shell pm path com.mr131.redplayer | grep -q '^package:' || exit 13
 timeout 15s adb shell pm grant com.mr131.redplayer android.permission.READ_EXTERNAL_STORAGE || true
+# Do not compete with the cold image's BOOT_COMPLETED and package-install receivers.
+if ! timeout 180s adb shell am wait-for-broadcast-idle; then
+  timeout 180s adb shell cmd activity wait-for-broadcast-idle || exit 14
+fi
 wait_for_android_ready || exit 14
 
 # Prove that the installed launcher activity starts and reaches its unique home marker.
@@ -105,9 +109,9 @@ timeout 30s adb shell am start -S -n com.mr131.redplayer/.MainActivity | tee pro
 launcher_status=${PIPESTATUS[0]}
 test "$launcher_status" -eq 0 || exit 15
 launcher_ready=0
-for attempt in $(seq 1 20); do
-  if timeout 5s adb shell uiautomator dump /sdcard/launcher-window.xml >/dev/null 2>&1 && \
-     timeout 5s adb pull /sdcard/launcher-window.xml proof/device-state/launcher-window.xml >/dev/null 2>&1 && \
+for attempt in $(seq 1 6); do
+  if timeout 20s adb shell uiautomator dump /sdcard/launcher-window.xml >/dev/null 2>&1 && \
+     timeout 10s adb pull /sdcard/launcher-window.xml proof/device-state/launcher-window.xml >/dev/null 2>&1 && \
      grep -q 'content-desc="131 Red Player Home Ready"' proof/device-state/launcher-window.xml; then
     launcher_ready=1
     break
