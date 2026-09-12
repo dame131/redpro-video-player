@@ -52,21 +52,30 @@ wait_for_android_ready() {
   test "$ready" -eq 1 || return 1
   timeout 15s adb shell uiautomator dump /sdcard/system-ready.xml >/dev/null 2>&1 || return 1
   timeout 15s adb pull /sdcard/system-ready.xml proof/device-state/system-ready.xml >/dev/null 2>&1 || return 1
-  if grep -Eq 'android:id/aerr_wait|Process system isn.t responding' proof/device-state/system-ready.xml; then
-    # Package installation can briefly starve system_server on a cold CI emulator.
-    # Press the dialog's actual Wait button, then require two clean health checks.
-    read -r wait_x wait_y < <(python tools/anr_wait_coordinates.py proof/device-state/system-ready.xml) || return 1
-    timeout 10s adb shell input tap "$wait_x" "$wait_y" || return 1
-    for recovery_check in 1 2; do
-      sleep 10
+  local current_dump=proof/device-state/system-ready.xml
+  local anr_count=0
+  local clean_count=0
+  # A cold CI install can queue separate system_server and System UI warnings.
+  # Recover at most three real Wait dialogs, then demand two consecutive clean checks.
+  for recovery_check in 1 2 3 4 5 6; do
+    if grep -q 'android:id/aerr_wait' "$current_dump"; then
+      anr_count=$((anr_count + 1))
+      test "$anr_count" -le 3 || return 1
+      read -r wait_x wait_y < <(python tools/anr_wait_coordinates.py "$current_dump") || return 1
+      timeout 10s adb shell input tap "$wait_x" "$wait_y" || return 1
+      clean_count=0
+      sleep 15
+    else
       timeout 5s adb shell service check activity 2>/dev/null | grep -q 'found' || return 1
-      timeout 15s adb shell uiautomator dump /sdcard/system-recovered.xml >/dev/null 2>&1 || return 1
-      timeout 15s adb pull /sdcard/system-recovered.xml proof/device-state/system-recovered-${recovery_check}.xml >/dev/null 2>&1 || return 1
-      grep -Eq 'android:id/aerr_wait|Process system isn.t responding' \
-        proof/device-state/system-recovered-${recovery_check}.xml && return 1
-    done
-  fi
-  return 0
+      clean_count=$((clean_count + 1))
+      test "$clean_count" -ge 2 && return 0
+      sleep 10
+    fi
+    current_dump=proof/device-state/system-recovered-${recovery_check}.xml
+    timeout 15s adb shell uiautomator dump /sdcard/system-recovered.xml >/dev/null 2>&1 || return 1
+    timeout 15s adb pull /sdcard/system-recovered.xml "$current_dump" >/dev/null 2>&1 || return 1
+  done
+  return 1
 }
 
 install_apk() {
@@ -77,6 +86,9 @@ install_apk() {
   done
   return 1
 }
+# Backup restore competes with Package Manager and can starve a cold API-30 emulator.
+timeout 15s adb shell bmgr enable false || true
+timeout 15s adb shell settings put secure backup_enabled 0 || true
 install_apk app/build/outputs/apk/debug/app-debug.apk 2>&1 | tee proof/install-app.txt
 app_install_status=${PIPESTATUS[0]}
 test "$app_install_status" -eq 0 || exit 11
