@@ -108,25 +108,13 @@ timeout 15s adb shell am force-stop com.mr131.redplayer
 timeout 30s adb shell am start -S -n com.mr131.redplayer/.MainActivity | tee proof/launcher.txt
 launcher_status=${PIPESTATUS[0]}
 test "$launcher_status" -eq 0 || exit 15
-launcher_ready=0
-for attempt in $(seq 1 6); do
-  if timeout 20s adb shell uiautomator dump /sdcard/launcher-window.xml >/dev/null 2>&1 && \
-     timeout 10s adb pull /sdcard/launcher-window.xml proof/device-state/launcher-window.xml >/dev/null 2>&1 && \
-     grep -q 'content-desc="131 Red Player Home Ready"' proof/device-state/launcher-window.xml; then
-    launcher_ready=1
-    break
-  fi
-  if [ -f proof/device-state/launcher-window.xml ] && \
-     grep -Eq 'android:id/aerr_wait|Process system isn.t responding' proof/device-state/launcher-window.xml; then
-    break
-  fi
-  sleep 1
-done
-test "$launcher_ready" -eq 1 || exit 16
 timeout 20s adb shell dumpsys activity activities > proof/device-state/launcher-activities.txt
 grep -Eq 'mResumedActivity.*com\.mr131\.redplayer/.MainActivity|topResumedActivity=.*com\.mr131\.redplayer/.MainActivity' \
   proof/device-state/launcher-activities.txt || exit 17
+grep -q 'reportedDrawn=true' proof/device-state/launcher-activities.txt || exit 18
 
+# ScreenTourTest asserts the unique “131 Red Player Home Ready” marker in the
+# real launched activity before it is allowed to capture screenshot 01.
 timeout 15m adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
