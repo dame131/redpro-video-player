@@ -26,8 +26,26 @@ timeout 15s adb shell cmd package resolve-activity --brief -a android.intent.act
   > proof/device-state/launcher-activity.txt
 
 collect_evidence() {
-  timeout 30s adb pull /sdcard/Android/data/com.mr131.redplayer/files/screenshots/. proof/screenshots/ \
-    > proof/pull-screenshots.txt 2>&1 || true
+  screenshot_dir=/sdcard/Android/data/com.mr131.redplayer/files/screenshots
+  if ! timeout 30s adb pull "$screenshot_dir/." proof/screenshots/ \
+      > proof/pull-screenshots.txt 2>&1; then
+    # Android 11 blocks shell from Android/data, but this debug app is safely
+    # readable through its own UID. Stream each PNG without weakening storage.
+    timeout 20s adb exec-out run-as com.mr131.redplayer ls -1 "$screenshot_dir" \
+      > proof/screenshot-files.txt 2>> proof/pull-screenshots.txt || true
+    while IFS= read -r screenshot; do
+      case "$screenshot" in
+        *.png)
+          if timeout 30s adb exec-out run-as com.mr131.redplayer cat "$screenshot_dir/$screenshot" \
+              > "proof/screenshots/$screenshot"; then
+            test -s "proof/screenshots/$screenshot" || rm -f "proof/screenshots/$screenshot"
+          else
+            rm -f "proof/screenshots/$screenshot"
+          fi
+          ;;
+      esac
+    done < proof/screenshot-files.txt
+  fi
   cp -R app/build/reports/androidTests proof/reports/ 2>/dev/null || true
   cp -R app/build/outputs/androidTest-results proof/reports/ 2>/dev/null || true
   timeout 10s adb shell uiautomator dump /sdcard/current-window.xml >/dev/null 2>&1 || true
@@ -126,7 +144,26 @@ test "$launcher_drawn" -eq 1 || exit 18
 timeout 15m adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
-if ! grep -q 'OK (1 test)' proof/instrumentation.txt; then test_status=1; fi
+if ! grep -q 'OK (2 tests)' proof/instrumentation.txt; then test_status=1; fi
+
+# AndroidJUnitRunner stops the target package after a successful suite. Relaunch
+# the real app so the final device-state evidence also proves it is foreground.
+if test "$test_status" -eq 0; then
+  timeout 30s adb shell am start -W -n com.mr131.redplayer/.MainActivity \
+    > proof/post-test-launcher.txt || test_status=1
+  post_test_foreground=0
+  for attempt in $(seq 1 30); do
+    timeout 20s adb shell dumpsys activity activities > proof/device-state/post-test-activities.txt || true
+    if grep -Eq 'mResumedActivity.*com\.mr131\.redplayer/.MainActivity|topResumedActivity=.*com\.mr131\.redplayer/.MainActivity' \
+        proof/device-state/post-test-activities.txt && \
+       grep -q 'reportedDrawn=true' proof/device-state/post-test-activities.txt; then
+      post_test_foreground=1
+      break
+    fi
+    sleep 1
+  done
+  test "$post_test_foreground" -eq 1 || test_status=1
+fi
 
 collect_evidence
 
