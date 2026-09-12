@@ -20,8 +20,8 @@ collect_evidence() {
     > proof/pull-screenshots.txt 2>&1 || true
   cp -R app/build/reports/androidTests proof/reports/ 2>/dev/null || true
   cp -R app/build/outputs/androidTest-results proof/reports/ 2>/dev/null || true
-  adb shell uiautomator dump /sdcard/current-window.xml >/dev/null 2>&1 || true
-  adb pull /sdcard/current-window.xml proof/ >/dev/null 2>&1 || true
+  timeout 10s adb shell uiautomator dump /sdcard/current-window.xml >/dev/null 2>&1 || true
+  timeout 10s adb pull /sdcard/current-window.xml proof/ >/dev/null 2>&1 || true
   adb logcat -d -v threadtime > proof/logcat.txt || true
   adb shell dumpsys activity activities > proof/activities.txt || true
   adb shell dumpsys window windows > proof/windows.txt || true
@@ -43,14 +43,14 @@ wait_for_android_ready() {
   local ready=0
   adb shell input keyevent KEYCODE_HOME
   for attempt in $(seq 1 90); do
-    if adb shell uiautomator dump /sdcard/system-ready.xml >/dev/null 2>&1 && \
-       adb pull /sdcard/system-ready.xml proof/device-state/system-ready.xml >/dev/null 2>&1; then
+    if timeout 10s adb shell uiautomator dump /sdcard/system-ready.xml >/dev/null 2>&1 && \
+       timeout 10s adb pull /sdcard/system-ready.xml proof/device-state/system-ready.xml >/dev/null 2>&1; then
       if dismiss_system_wait_dialog proof/device-state/system-ready.xml; then
         sleep 1
         continue
       fi
-      if adb shell service check activity 2>/dev/null | grep -q 'found' && \
-         adb shell cmd package list packages android 2>/dev/null | grep -q '^package:android$'; then
+      if timeout 10s adb shell service check activity 2>/dev/null | grep -q 'found' && \
+         timeout 10s adb shell cmd package list packages android 2>/dev/null | grep -q '^package:android$'; then
         ready=1
         break
       fi
@@ -85,8 +85,8 @@ launcher_status=${PIPESTATUS[0]}
 test "$launcher_status" -eq 0 || exit 15
 launcher_ready=0
 for attempt in $(seq 1 90); do
-  if adb shell uiautomator dump /sdcard/launcher-window.xml >/dev/null 2>&1 && \
-     adb pull /sdcard/launcher-window.xml proof/device-state/launcher-window.xml >/dev/null 2>&1 && \
+  if timeout 10s adb shell uiautomator dump /sdcard/launcher-window.xml >/dev/null 2>&1 && \
+     timeout 10s adb pull /sdcard/launcher-window.xml proof/device-state/launcher-window.xml >/dev/null 2>&1 && \
      grep -q 'content-desc="131 Red Player Home Ready"' proof/device-state/launcher-window.xml; then
     launcher_ready=1
     break
