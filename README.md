@@ -13,6 +13,12 @@ The Android app uses Media3 for real local playback. It includes:
 - Playback speed from 0.25× to 8×
 - Two-finger pinch zoom up to 5× with reset
 - Frame stepping, jump-to-time, Quick Mute, video filters, subtitle styling, preferred languages and equalizer presets
+- Embedded subtitle-track selection with a subtitles-off choice
+- Repeat off, repeat one video, or repeat all videos
+- Configurable 5, 10, 15, 30, or 60 second skip controls
+- Automatic, portrait, landscape, and reverse screen orientations
+- Custom sleep timer, timer cancellation, and stop-after-current-video
+- Drag to reposition the picture while pinch-zoomed and saved playback brightness
 - Local SRT and WebVTT subtitles
 - A–B repeat
 - Picture-in-picture
@@ -53,7 +59,7 @@ Private, ad-free, installable video player for phones and computers.
 
 ## Honest limits
 
-This is a web app, not an Android APK project. Browser support controls video formats. Videos never upload. Google Drive, Google Photos, casting, biometric vault storage, and true AI upscaling are not included.
+The native Android app and the earlier browser player are both in this repository. Browser format support still depends on the browser. The Android app can open files exposed by Android's document providers, but it does not include a separate Google Photos sign-in. "4K Ultra HD mode" selects the highest available source track; it does not claim true AI upscaling.
 
 ## Open the app
 
