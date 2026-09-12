@@ -49,7 +49,10 @@ public final class ScreenTourTest {
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
         device.waitForIdle();
-        output = new File(target.getFilesDir(), "screenshots");
+        File externalFiles = target.getExternalFilesDir(null);
+        assertNotNull("External app files directory is unavailable", externalFiles);
+        output = new File(externalFiles, "screenshots");
+        deleteRecursively(output);
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
     }
 
@@ -115,6 +118,8 @@ public final class ScreenTourTest {
         startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
         startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
         startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
+        startScreen(AboutActivity.class);
+        capture("32-about-privacy", By.desc("About and Privacy Screen"), true);
     }
 
     private void startScreen(Class<?> screen) {
@@ -211,5 +216,14 @@ public final class ScreenTourTest {
         } finally {
             bitmap.recycle();
         }
+    }
+
+    private void deleteRecursively(File file) {
+        if (!file.exists()) return;
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) deleteRecursively(child);
+        }
+        assertTrue("Could not remove stale proof file: " + file, file.delete());
     }
 }

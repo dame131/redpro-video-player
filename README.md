@@ -19,6 +19,15 @@ The Android app uses Media3 for real local playback. It includes:
 - Automatic, portrait, landscape, and reverse screen orientations
 - Custom sleep timer, timer cancellation, and stop-after-current-video
 - Drag to reposition the picture while pinch-zoomed and saved playback brightness
+- Per-video speed, screen fit, subtitle timing and decoder memory
+- Resume-or-start-over choice and hold-for-fast-play gesture
+- Video-frame screenshots for both common Android video surfaces
+- Video library views for recent and newly added items, eight sort modes, refresh and properties
+- Music browsing by songs, artists, albums and genres with track details and cover art
+- Restored music queue and position plus headset-unplug pause and media-button support
+- Saved named network sources with favorites, recent ordering, editing and safe port checks
+- Vault rename, export, confirmed delete, PIN change and automatic relocking
+- About, privacy, version and safe temporary-cache controls
 - Local SRT and WebVTT subtitles
 - A–B repeat
 - Picture-in-picture
@@ -29,7 +38,7 @@ The Android app uses Media3 for real local playback. It includes:
 - Fingerprint/device-lock protected private picker
 - Open-with support from other Android applications
 
-Every push that changes the Android project runs the **Build Android APK** workflow. Download the finished file from the workflow artifact named **131-Red-Player-APK**.
+Every push runs the **Android Build and Screen Proof** workflow. It builds both test APKs, launches the real app in an emulator, captures 32 screens and dialogs, rejects missing/blank/duplicate images, and checks for app crashes or freezes.
 
 Private, ad-free, installable video player for phones and computers.
 

@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -44,15 +45,33 @@ public final class VaultActivity extends AppCompatActivity {
     private final ArrayList<String> names = new ArrayList<>();
     private ArrayAdapter<String> adapter;
     private LinearLayout lockedView;
+    private boolean vaultUnlocked;
+    private File pendingExportFile;
 
     private final ActivityResultLauncher<String[]> picker = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), uri -> { if (uri != null) importVideo(uri); });
+    private final ActivityResultLauncher<String> exporter = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("video/*"), uri -> {
+                File source = pendingExportFile;
+                pendingExportFile = null;
+                if (uri != null && source != null && source.isFile()) exportVideo(source, uri);
+            });
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         setTitle("Private Vault");
         clearPlaybackCache();
         showLockedScreen();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (!vaultUnlocked) showLockedScreen();
+    }
+
+    @Override protected void onStop() {
+        vaultUnlocked = false;
+        super.onStop();
     }
 
     private void showLockedScreen() {
@@ -86,20 +105,74 @@ public final class VaultActivity extends AppCompatActivity {
     }
 
     private void showVault() {
+        vaultUnlocked=true;
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(12),dp(14),dp(12));RedPlayerBackground.apply(root);
         root.addView(LuxuryIconView.create(this,R.drawable.icon_vault_thick,"Private Vault emblem"));TextView title=text("PRIVATE MEDIA VAULT",24,Color.WHITE);title.setContentDescription("Vault Unlocked");root.addView(title);
         Button add=button("ADD PRIVATE VIDEO");add.setOnClickListener(v->picker.launch(new String[]{"video/*"}));root.addView(add);
+        Button changePin=button("CHANGE VAULT PIN");changePin.setOnClickListener(v->showChangePin());root.addView(changePin);
+        Button lock=button("LOCK VAULT NOW");lock.setOnClickListener(v->{vaultUnlocked=false;clearPlaybackCache();showLockedScreen();});root.addView(lock);
         ListView list=new ListView(this);adapter=new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,names){@NonNull @Override public View getView(int p,View c,@NonNull android.view.ViewGroup g){TextView v=(TextView)super.getView(p,c,g);v.setTextColor(Color.WHITE);v.setMinHeight(dp(60));return v;}};list.setAdapter(adapter);
         list.setOnItemClickListener((p,v,i,id)->openEncryptedVideo(files.get(i),names.get(i)));
-        list.setOnItemLongClickListener((p,v,i,id)->{File file=files.get(i);new AlertDialog.Builder(this).setTitle("Remove private video?").setMessage(names.get(i)).setNegativeButton("Cancel",null).setPositiveButton("Delete",(d,w)->{if(file.delete()){toast("Private video deleted");reload();}else toast("Could not delete video");}).show();return true;});
+        list.setOnItemLongClickListener((p,v,i,id)->{showFileActions(files.get(i),names.get(i));return true;});
         root.addView(list,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);reload();new Thread(this::migrateLegacyVault,"vault-migrate").start();
     }
+
+    private void showFileActions(File file,String name){
+        new AlertDialog.Builder(this).setTitle(name).setItems(new String[]{"Rename","Export to phone or Drive","Delete"},(d,which)->{
+            if(which==0)showRename(file,name);
+            else if(which==1){pendingExportFile=file;exporter.launch(name);}
+            else confirmDelete(file,name);
+        }).show();
+    }
+
+    private void showRename(File file,String currentName){
+        EditText input=new EditText(this);input.setSingleLine(true);input.setText(currentName);input.setSelection(currentName.length());input.setTextColor(Color.WHITE);input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));
+        new AlertDialog.Builder(this).setTitle("Rename private video").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Rename",(d,w)->{
+            String safe=input.getText().toString().trim().replaceAll("[^a-zA-Z0-9._ -]","_");
+            if(safe.length()>120)safe=safe.substring(0,120).trim();
+            if(safe.isEmpty()){toast("Enter a video name");return;}
+            String old=file.getName();String prefix=old.contains("_")?old.substring(0,old.indexOf('_')+1):System.currentTimeMillis()+"_";
+            File renamed=new File(file.getParentFile(),prefix+safe+".vlt");
+            if(renamed.exists()){toast("That name is already used");return;}
+            if(file.renameTo(renamed)){toast("Private video renamed");reload();}else toast("Could not rename video");
+        }).show();
+    }
+
+    private void confirmDelete(File file,String name){
+        new AlertDialog.Builder(this).setTitle("Delete private video?").setMessage(name+" will be permanently removed from the vault.").setNegativeButton("Cancel",null).setPositiveButton("Delete",(d,w)->{
+            if(file.delete()){toast("Private video deleted");reload();}else toast("Could not delete video");
+        }).show();
+    }
+
+    private void showChangePin(){
+        LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);fields.setPadding(dp(20),0,dp(20),0);
+        EditText pin=pinField("New 4–8 digit PIN");EditText confirm=pinField("Enter new PIN again");fields.addView(pin);fields.addView(confirm);
+        new AlertDialog.Builder(this).setTitle("Change vault PIN").setView(fields).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{
+            String first=pin.getText().toString();String second=confirm.getText().toString();
+            if(!first.matches("[0-9]{4,8}")){toast("PIN must be 4 to 8 digits");return;}
+            if(!first.equals(second)){toast("PINs do not match");return;}
+            getPreferences(MODE_PRIVATE).edit().putString("pin",hash(first)).apply();toast("Vault PIN changed");
+        }).show();
+    }
+
+    private EditText pinField(String hint){EditText input=new EditText(this);input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);input.setHint(hint);input.setTextColor(Color.WHITE);input.setHintTextColor(Color.LTGRAY);input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));return input;}
 
     private void importVideo(Uri uri) {
         File folder=new File(getFilesDir(),"vault"); if(!folder.isDirectory()&&!folder.mkdirs()){toast("Could not create vault");return;}
         String name=displayName(uri).replaceAll("[^a-zA-Z0-9._ -]","_");File target=new File(folder,System.currentTimeMillis()+"_"+name+".vlt");
         toast("Encrypting private video…");
         new Thread(()->{try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new Exception("File unavailable");VaultCrypto.encrypt(in,target);runOnUiThread(()->{toast("Video encrypted in vault");reload();});}catch(Exception e){target.delete();runOnUiThread(()->toast("Could not encrypt that video"));}},"vault-encrypt").start();
+    }
+
+    private void exportVideo(File encrypted,Uri destination){
+        toast("Preparing private video export…");
+        new Thread(()->{File folder=new File(getCacheDir(),"vault-export");folder.mkdirs();clearFolder(folder);File plain=new File(folder,"export.tmp");try{
+            VaultCrypto.decrypt(encrypted,plain);
+            try(InputStream in=new FileInputStream(plain);OutputStream out=getContentResolver().openOutputStream(destination,"wt")){
+                if(out==null)throw new Exception("File unavailable");byte[] buffer=new byte[128*1024];int count;while((count=in.read(buffer))!=-1)out.write(buffer,0,count);
+            }
+            runOnUiThread(()->toast("Private video exported"));
+        }catch(Exception e){try{getContentResolver().delete(destination,null,null);}catch(Exception ignored){}runOnUiThread(()->toast("Could not export private video"));}finally{plain.delete();clearFolder(folder);}},"vault-export").start();
     }
 
     private void openEncryptedVideo(File encrypted,String displayName){toast("Opening encrypted video…");new Thread(()->{try{File folder=new File(getCacheDir(),"vault-playback");folder.mkdirs();clearFolder(folder);String safe=displayName.replaceAll("[^a-zA-Z0-9._ -]","_");File playable=new File(folder,safe);VaultCrypto.decrypt(encrypted,playable);Uri uri=FileProvider.getUriForFile(this,getPackageName()+".files",playable);runOnUiThread(()->{setResult(RESULT_OK,new Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));finish();});}catch(Exception e){runOnUiThread(()->toast("Vault file could not be unlocked"));}},"vault-decrypt").start();}

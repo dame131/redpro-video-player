@@ -21,7 +21,9 @@ import android.provider.MediaStore;
 import android.util.Rational;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.PixelCopy;
 import android.view.ScaleGestureDetector;
+import android.view.SurfaceView;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
@@ -48,6 +50,7 @@ import androidx.core.content.FileProvider;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
@@ -64,6 +67,7 @@ import com.google.android.gms.cast.framework.CastContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executor;
@@ -88,6 +92,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout bottomBar;
     private final ArrayList<Uri> videos = new ArrayList<>();
     private final ArrayList<String> names = new ArrayList<>();
+    private final HashMap<String,MediaMetadata> metadataByUri = new HashMap<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
     private int current = -1;
@@ -119,6 +124,9 @@ public class MainActivity extends AppCompatActivity {
     private long seekStepMs = 10_000L;
     private boolean sleepAfterCurrent = false;
     private Runnable sleepTimerTask;
+    private boolean temporaryFastPlayback = false;
+    private float speedBeforeHold = 1f;
+    private String lastPerVideoDecoderLaunchUri = "";
     private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
@@ -129,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> libraryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
-                    addVideos(Collections.singletonList(result.getData().getData()));
+                    addPickedMedia(result.getData());
                 }
             });
     private final ActivityResultLauncher<Intent> vaultLauncher = registerForActivityResult(
@@ -182,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
             else toast("Playback service could not start");
             return;
         }
-        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());if(videos.isEmpty())loadSavedPlaylist();
+        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());if(videos.isEmpty())loadPlayerQueue();if(videos.isEmpty())loadSavedPlaylist();
     }
 
     private void wireButtons() {
@@ -261,9 +269,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleDecoder(View view) {
-        softwareDecoder=!softwareDecoder;prefs.edit().putBoolean("software_decoder",softwareDecoder).apply();setChromeActive(view,softwareDecoder);view.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");
+        softwareDecoder=!softwareDecoder;SharedPreferences.Editor edit=prefs.edit();if(current>=0)edit.putBoolean(videoKey("software_decoder"),softwareDecoder);else edit.putBoolean("software_decoder",softwareDecoder);edit.apply();setChromeActive(view,softwareDecoder);view.setContentDescription(softwareDecoder?"Software decoder":"Hardware decoder");
         if(softwareDecoder){toast("VLC software codec selected");if(current>=0)openVlcCodec();}
-        else{PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);toast("Hardware decoder selected");}
+        else{lastPerVideoDecoderLaunchUri="";PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);toast("Hardware decoder selected");}
     }
 
     private void setupCast() {
@@ -292,7 +300,11 @@ public class MainActivity extends AppCompatActivity {
             }
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
                 current = player.getCurrentMediaItemIndex();
-                if (current >= 0 && current < names.size()) titleText.setText(names.get(current));
+                if (current >= 0 && current < names.size()) {
+                    titleText.setText(names.get(current));
+                    applyRememberedPlaybackSettings(current);
+                    launchRememberedDecoderIfNeeded();
+                }
                 if(sleepAfterCurrent&&reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO){sleepAfterCurrent=false;player.pause();player.seekToDefaultPosition();toast("Stopped after current video");}
             }
             @Override public void onPlayerError(@NonNull PlaybackException error) {
@@ -332,12 +344,16 @@ public class MainActivity extends AppCompatActivity {
         toast(result.size() + " video" + (result.size() == 1 ? "" : "s") + " added");
     }
 
+    private void addPickedMedia(Intent data){Uri uri=data.getData();if(uri==null)return;MediaMetadata.Builder info=new MediaMetadata.Builder();String title=data.getStringExtra("title"),artist=data.getStringExtra("artist"),album=data.getStringExtra("album"),art=data.getStringExtra("artwork");if(title!=null&&!title.isEmpty())info.setTitle(title);if(artist!=null&&!artist.isEmpty())info.setArtist(artist);if(album!=null&&!album.isEmpty())info.setAlbumTitle(album);if(art!=null&&!art.isEmpty())info.setArtworkUri(Uri.parse(art));metadataByUri.put(uri.toString(),info.build());addVideos(Collections.singletonList(uri));}
+
+    private void loadPlayerQueue(){if(player==null)return;for(int i=0;i<player.getMediaItemCount();i++){MediaItem item=player.getMediaItemAt(i);if(item.localConfiguration==null||item.localConfiguration.uri==null)continue;Uri uri=item.localConfiguration.uri;if(videos.contains(uri))continue;videos.add(uri);CharSequence title=item.mediaMetadata.title;names.add(title==null||title.length()==0?displayName(uri):title.toString());metadataByUri.put(uri.toString(),item.mediaMetadata);}if(!videos.isEmpty()){current=Math.max(0,Math.min(player.getCurrentMediaItemIndex(),videos.size()-1));titleText.setText(names.get(current));applyRememberedPlaybackSettings(current);}}
+
     private void rebuildPlaylist() {
         long oldPosition = player.getCurrentPosition();
         int oldIndex = current;
         ArrayList<MediaItem> media = new ArrayList<>();
         for (int i = 0; i < videos.size(); i++) {
-            media.add(new MediaItem.Builder().setUri(videos.get(i)).setMediaId(videos.get(i).toString()).setTag(names.get(i)).build());
+            MediaItem.Builder item=new MediaItem.Builder().setUri(videos.get(i)).setMediaId(videos.get(i).toString()).setTag(names.get(i));MediaMetadata details=metadataByUri.get(videos.get(i).toString());if(details!=null)item.setMediaMetadata(details);media.add(item.build());
         }
         player.setMediaItems(media, Math.max(0, oldIndex), Math.max(0, oldPosition));
         player.prepare();
@@ -349,12 +365,40 @@ public class MainActivity extends AppCompatActivity {
         if (index < 0) index = videos.size() - 1;
         if (index >= videos.size()) index = 0;
         current = index;
-        speed=prefs.getFloat(videoKey("speed"),prefs.getFloat("speed",1f));fitMode=prefs.getInt(videoKey("fit"),fitMode);subtitleOffsetMs=prefs.getLong(videoKey("subtitle_offset"),prefs.getLong("subtitle_offset",0));player.setPlaybackSpeed(speed);
-        applyFourKMode();applyFitMode();
-        player.seekTo(index, resumeEnabled ? savedPosition(videos.get(index)) : 0);
+        long saved=resumeEnabled?savedPosition(videos.get(index)):0;
+        if(saved>=10_000L){
+            final int selected=index;
+            new AlertDialog.Builder(this).setTitle("Continue watching?").setMessage("Resume at "+formatTime(saved)+" or play from the beginning.").setPositiveButton("Resume",(d,w)->startSelectedVideo(selected,saved,play)).setNegativeButton("Start over",(d,w)->startSelectedVideo(selected,0,play)).setCancelable(false).show();
+        }else startSelectedVideo(index,0,play);
+    }
+
+    private void startSelectedVideo(int index,long position,boolean play) {
+        current=index;
+        applyRememberedPlaybackSettings(index);
+        player.seekTo(index,Math.max(0,position));
         player.prepare();
         if (play) player.play();
         titleText.setText(names.get(index));
+        launchRememberedDecoderIfNeeded();
+    }
+
+    private void applyRememberedPlaybackSettings(int index) {
+        speed=prefs.getFloat(videoKey("speed",index),1f);
+        fitMode=prefs.getInt(videoKey("fit",index),0);
+        subtitleOffsetMs=prefs.getLong(videoKey("subtitle_offset",index),prefs.getLong("subtitle_offset",0));
+        softwareDecoder=prefs.getBoolean(videoKey("software_decoder",index),prefs.getBoolean("software_decoder",false));
+        if(player!=null)player.setPlaybackSpeed(speed);
+        applyFourKMode();applyFitMode();
+        View speedIcon=findViewById(R.id.speedButton);speedIcon.setContentDescription("Playback speed "+speed+" times");setChromeActive(speedIcon,speed!=1f);
+        View decoderIcon=findViewById(R.id.decoderButton);decoderIcon.setContentDescription(softwareDecoder?"VLC software codec":"Hardware decoder");setChromeActive(decoderIcon,softwareDecoder);
+    }
+
+    private void launchRememberedDecoderIfNeeded() {
+        if(!softwareDecoder||current<0||current>=videos.size())return;
+        String uri=videos.get(current).toString();
+        if(uri.equals(lastPerVideoDecoderLaunchUri))return;
+        lastPerVideoDecoderLaunchUri=uri;
+        handler.post(this::openVlcCodec);
     }
 
     private void addSubtitle(Uri uri) {
@@ -382,7 +426,7 @@ public class MainActivity extends AppCompatActivity {
         final String[] labels = {"0.25×","0.5×","0.75×","1×","1.25×","1.5×","1.75×","2×","3×","4×","6×","8×"};
         final float[] values = {.25f,.5f,.75f,1f,1.25f,1.5f,1.75f,2f,3f,4f,6f,8f};
         new AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(labels, indexOf(values, speed), (d, which) -> {
-            speed = values[which]; player.setPlaybackSpeed(speed); SharedPreferences.Editor edit=prefs.edit().putFloat("speed",speed);if(current>=0)edit.putFloat(videoKey("speed"),speed);edit.apply(); anchor.setContentDescription("Playback speed " + labels[which]); setChromeActive(anchor,speed!=1f); d.dismiss();
+            speed = values[which]; player.setPlaybackSpeed(speed); SharedPreferences.Editor edit=prefs.edit();if(current>=0)edit.putFloat(videoKey("speed"),speed);else edit.putFloat("speed",speed);edit.apply(); anchor.setContentDescription("Playback speed " + labels[which]); setChromeActive(anchor,speed!=1f); d.dismiss();
         }).show();
     }
 
@@ -425,7 +469,15 @@ public class MainActivity extends AppCompatActivity {
         AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
         GestureDetector detector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override public boolean onDown(@NonNull MotionEvent e) { return true; }
-            @Override public void onLongPress(@NonNull MotionEvent e) { if (controlsLocked) toggleLock(); }
+            @Override public void onLongPress(@NonNull MotionEvent e) {
+                if (controlsLocked) { toggleLock(); return; }
+                if(!gesturesEnabled||player==null||current<0)return;
+                speedBeforeHold=player.getPlaybackParameters().speed;
+                temporaryFastPlayback=true;
+                float holdSpeed=Math.max(2f,speedBeforeHold);
+                player.setPlaybackSpeed(holdSpeed);
+                showGesture("Hold • "+holdSpeed+"× speed");
+            }
             @Override public boolean onSingleTapConfirmed(@NonNull MotionEvent e) {
                 if (!controlsLocked) playerControls.setVisibility(playerControls.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
                 return true;
@@ -471,8 +523,10 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
-        playerView.setOnTouchListener((view, event) -> {boolean zoom=scaleDetector.onTouchEvent(event);if(scaleDetector.isInProgress())return true;return detector.onTouchEvent(event)||zoom;});
+        playerView.setOnTouchListener((view,event)->{scaleDetector.onTouchEvent(event);detector.onTouchEvent(event);if(event.getActionMasked()==MotionEvent.ACTION_UP||event.getActionMasked()==MotionEvent.ACTION_CANCEL){releaseTemporaryFastPlayback(true);if(videoScale<=1.01f){videoTranslationX=videoTranslationY=0f;View surface=playerView.getVideoSurfaceView();if(surface!=null){surface.setTranslationX(0f);surface.setTranslationY(0f);}}}return true;});
     }
+
+    private void releaseTemporaryFastPlayback(boolean announce){if(!temporaryFastPlayback||player==null)return;temporaryFastPlayback=false;player.setPlaybackSpeed(speedBeforeHold);if(announce)showGesture("Speed "+speedBeforeHold+"×");}
 
     private void showPlaylist(String filter) {
         ArrayList<Integer> indexes = new ArrayList<>(); ArrayList<String> shown = new ArrayList<>();
@@ -489,7 +543,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMore(View anchor) {
         PopupMenu menu = new PopupMenu(new ContextThemeWrapper(this, R.style.ThemeOverlay_RedPlayer_Popup), anchor);
-        menu.getMenu().add("Audio tracks");menu.getMenu().add("Add video bookmark");menu.getMenu().add("Video bookmarks");menu.getMenu().add("Equalizer & Bass");menu.getMenu().add("Subtitle timing");menu.getMenu().add("Download subtitles");menu.getMenu().add("History & recovery");menu.getMenu().add("Private vault");menu.getMenu().add("Tools & storage");menu.getMenu().add("Rotate screen");menu.getMenu().add("Sleep timer");
+        menu.getMenu().add("Audio tracks");menu.getMenu().add("Add video bookmark");menu.getMenu().add("Video bookmarks");menu.getMenu().add("Equalizer & Bass");menu.getMenu().add("Subtitle timing");menu.getMenu().add("Download subtitles");menu.getMenu().add("History & recovery");menu.getMenu().add("Private vault");menu.getMenu().add("Tools & storage");menu.getMenu().add("Rotate screen");menu.getMenu().add("Sleep timer");menu.getMenu().add("About & privacy");
         menu.setOnMenuItemClickListener(item -> {
             String title=item.getTitle().toString();
             if(title.equals("Tools & storage"))showTools();
@@ -503,6 +557,7 @@ public class MainActivity extends AppCompatActivity {
             if(title.equals("Private vault"))unlockVault();
             if(title.equals("Rotate screen"))setRequestedOrientation(getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE?ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             if(title.equals("Sleep timer"))showSleepTimer();
+            if(title.equals("About & privacy"))startActivity(new Intent(this,AboutActivity.class));
             return true;
         }); menu.show();
     }
@@ -595,7 +650,7 @@ public class MainActivity extends AppCompatActivity {
             if(w==3){prefs.edit().putBoolean("keep_awake",on).apply();applyKeepAwake(on);}
             if(w==4){resumeEnabled=on;prefs.edit().putBoolean("resume",on).apply();}
             if(w==5){gesturesEnabled=on;prefs.edit().putBoolean("gestures",on).apply();}
-            if(w==6){softwareDecoder=on;prefs.edit().putBoolean("software_decoder",on).apply();if(on)openVlcCodec();else{PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);}}
+            if(w==6){softwareDecoder=on;SharedPreferences.Editor edit=prefs.edit().putBoolean("software_decoder",on);if(current>=0)edit.putBoolean(videoKey("software_decoder"),on);edit.apply();if(on)openVlcCodec();else{lastPerVideoDecoderLaunchUri="";PlaybackService.setSoftwareDecoder(false);playerView.setPlayer(null);connectPlayer(0);}}
         }).setNeutralButton("Clear history",(d,w)->{clearHistoryOnly();toast("Playback history cleared");}).setPositiveButton("Done",null).show();
     }
 
@@ -661,7 +716,15 @@ public class MainActivity extends AppCompatActivity {
         startActivity(new Intent(this,TechnicalInspectorActivity.class).putExtra("details",details));
     }
     private void toggleAudioOnly(){audioOnly=!audioOnly;playerView.setAlpha(audioOnly?0f:1f);prefs.edit().putBoolean("audio_only",audioOnly).apply();toast(audioOnly?"Audio-only mode on":"Video restored");}
-    private void saveVideoScreenshot(){if(current<0){toast("Open a video first");return;}View surface=playerView.getVideoSurfaceView();if(!(surface instanceof TextureView)){toast("Screenshot is unavailable for this video");return;}Bitmap bitmap=((TextureView)surface).getBitmap();if(bitmap==null){toast("Video frame is not ready");return;}new Thread(()->{try{ContentValues values=new ContentValues();values.put(MediaStore.Images.Media.DISPLAY_NAME,"131-player-"+System.currentTimeMillis()+".png");values.put(MediaStore.Images.Media.MIME_TYPE,"image/png");if(android.os.Build.VERSION.SDK_INT>=29)values.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/131 Red Player");Uri target=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);if(target==null)throw new Exception();try(OutputStream out=getContentResolver().openOutputStream(target)){if(out==null||!bitmap.compress(Bitmap.CompressFormat.PNG,100,out))throw new Exception();}runOnUiThread(()->toast("Video screenshot saved"));}catch(Exception e){runOnUiThread(()->toast("Screenshot could not be saved"));}finally{bitmap.recycle();}},"frame-save").start();}
+    private void saveVideoScreenshot(){
+        if(current<0){toast("Open a video first");return;}
+        View surface=playerView.getVideoSurfaceView();
+        if(surface==null||surface.getWidth()<=0||surface.getHeight()<=0){toast("Video frame is not ready");return;}
+        if(surface instanceof TextureView){Bitmap bitmap=((TextureView)surface).getBitmap();if(bitmap==null)toast("Video frame is not ready");else saveScreenshotBitmap(bitmap);return;}
+        if(surface instanceof SurfaceView){Bitmap bitmap=Bitmap.createBitmap(surface.getWidth(),surface.getHeight(),Bitmap.Config.ARGB_8888);PixelCopy.request((SurfaceView)surface,bitmap,result->{if(result==PixelCopy.SUCCESS)saveScreenshotBitmap(bitmap);else{bitmap.recycle();toast("Screenshot could not capture this frame");}},handler);return;}
+        toast("Screenshot is unavailable for this video");
+    }
+    private void saveScreenshotBitmap(Bitmap bitmap){new Thread(()->{try{ContentValues values=new ContentValues();values.put(MediaStore.Images.Media.DISPLAY_NAME,"131-player-"+System.currentTimeMillis()+".png");values.put(MediaStore.Images.Media.MIME_TYPE,"image/png");if(android.os.Build.VERSION.SDK_INT>=29)values.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/131 Red Player");Uri target=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);if(target==null)throw new Exception();try(OutputStream out=getContentResolver().openOutputStream(target)){if(out==null||!bitmap.compress(Bitmap.CompressFormat.PNG,100,out))throw new Exception();}runOnUiThread(()->toast("Video screenshot saved to Pictures/131 Red Player"));}catch(Exception e){runOnUiThread(()->toast("Screenshot could not be saved"));}finally{bitmap.recycle();}},"frame-save").start();}
     private void loadSeekPreview(long position){if(current<0||current>=videos.size())return;int request=++previewRequest;Uri uri=videos.get(current);new Thread(()->{MediaMetadataRetriever r=new MediaMetadataRetriever();try{r.setDataSource(this,uri);Bitmap frame=r.getFrameAtTime(position*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);if(frame!=null)runOnUiThread(()->{if(request==previewRequest&&seekPreview.getVisibility()==View.VISIBLE)seekPreview.setImageBitmap(frame);else frame.recycle();});}catch(Exception ignored){}finally{try{r.release();}catch(Exception ignored){}}},"seek-preview").start();}
 
     private String displayName(Uri uri) {
@@ -671,11 +734,12 @@ public class MainActivity extends AppCompatActivity {
     private String formatTime(long ms){if(ms<0)return"Unknown";long s=ms/1000;return String.format(Locale.US,"%d:%02d:%02d",s/3600,(s/60)%60,s%60);}
     private long savedPosition(Uri uri){return prefs.getLong("pos:"+uri,0);}
     private String videoKey(String setting){return setting+":"+(current>=0&&current<videos.size()?videos.get(current):"none");}
+    private String videoKey(String setting,int index){return setting+":"+(index>=0&&index<videos.size()?videos.get(index):"none");}
     private void savePosition(){if(current>=0&&current<videos.size()){long position=player.getCurrentPosition();prefs.edit().putLong("pos:"+videos.get(current),position).apply();try{JSONArray source=new JSONArray(prefs.getString("history","[]"));JSONArray next=new JSONArray();JSONObject item=new JSONObject().put("uri",videos.get(current).toString()).put("name",names.get(current)).put("position",position).put("watched",System.currentTimeMillis());next.put(item);for(int i=0;i<source.length()&&next.length()<50;i++){JSONObject old=source.optJSONObject(i);if(old!=null&&!old.optString("uri").equals(videos.get(current).toString()))next.put(old);}prefs.edit().putString("history",next.toString()).apply();}catch(Exception ignored){}}}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_SHORT).show();}
     private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(Collections.singletonList(intent.getData()));}
 
     @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);playerControls.setVisibility(inPip?View.GONE:View.VISIBLE);}
-    @Override protected void onStop(){super.onStop();if(!isInPictureInPictureMode())savePosition();}
+    @Override protected void onStop(){releaseTemporaryFastPlayback(false);super.onStop();if(!isInPictureInPictureMode())savePosition();}
     @Override protected void onDestroy(){cancelSleepTimer();handler.removeCallbacksAndMessages(null);playerView.setPlayer(null);if(localCastServer!=null)localCastServer.stop();if(castPlayer!=null)castPlayer.release();super.onDestroy();}
 }

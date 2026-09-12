@@ -27,8 +27,8 @@ jobs:
           python-version: "3.12"
       - name: Install screenshot validator
         run: python -m pip install --disable-pip-version-check pillow==11.3.0
-      - name: Build app and UI test
-        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Build app and every automatic test
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Launch the real app and capture every screen
         id: visual_test
         continue-on-error: true
@@ -48,6 +48,10 @@ jobs:
           name: android-apk-screenshots-and-logs
           path: |
             app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/androidTest/debug/*.apk
+            app/build/reports/tests/
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
             proof/
           if-no-files-found: error
       - name: Fail an unsuccessful visual test

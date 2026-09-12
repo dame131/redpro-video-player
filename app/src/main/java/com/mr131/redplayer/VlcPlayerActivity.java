@@ -17,6 +17,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import org.videolan.libvlc.LibVLC;
@@ -36,11 +37,13 @@ public final class VlcPlayerActivity extends AppCompatActivity {
     private SeekBar seek;
     private TextView time;
     private LinearLayout controls;
+    private Uri sourceUri;
+    private boolean playbackErrorShown;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        Uri uri=getIntent().getData();
+        Uri uri=getIntent().getData();sourceUri=uri;
         if(uri==null){finish();return;}
         buildScreen(getIntent().getStringExtra("title"));
         SharedPreferences prefs=getSharedPreferences("red_player",MODE_PRIVATE);
@@ -53,13 +56,27 @@ public final class VlcPlayerActivity extends AppCompatActivity {
             String scheme=uri.getScheme();
             if("content".equalsIgnoreCase(scheme)){sourceFd=getContentResolver().openFileDescriptor(uri,"r");if(sourceFd==null)throw new Exception("File is unavailable");media=new Media(vlc,sourceFd.getFileDescriptor());}
             else media=new Media(vlc,uri);
-        }catch(Exception error){Toast.makeText(this,"VLC could not open this file",Toast.LENGTH_LONG).show();finish();return;}
+        }catch(Exception error){Toast.makeText(this,openError(uri),Toast.LENGTH_LONG).show();finish();return;}
         media.setHWDecoderEnabled(false,false);media.addOption(":codec=all");
         String[] encodings={"","UTF-8","Windows-1252","ISO-8859-1","UTF-16"};int encoding=prefs.getInt("subtitle_encoding",0);if(encoding>0&&encoding<encodings.length)media.addOption(":subsdec-encoding="+encodings[encoding]);String[] deinterlace={"","auto","yadif","blend"};int di=prefs.getInt("vlc_deinterlace",0);if(di>0&&di<deinterlace.length){media.addOption(":deinterlace=1");media.addOption(":deinterlace-mode="+deinterlace[di]);}
         player.setMedia(media);media.release();
-        player.setEventListener(event->{if(event.type==MediaPlayer.Event.EncounteredError)runOnUiThread(()->Toast.makeText(this,"VLC could not decode this file",Toast.LENGTH_LONG).show());if(event.type==MediaPlayer.Event.EndReached)runOnUiThread(this::finish);});
+        player.setEventListener(event->{if(event.type==MediaPlayer.Event.EncounteredError)runOnUiThread(this::showPlaybackError);if(event.type==MediaPlayer.Event.EndReached)runOnUiThread(this::finish);});
         player.play();player.setVolume(prefs.getInt("vlc_volume",100));player.setAudioDelay(prefs.getInt("vlc_audio_delay",0)*1000L);player.setSpuDelay(prefs.getInt("vlc_subtitle_delay",0)*1000L);long start=getIntent().getLongExtra("position",0);if(start>0)handler.postDelayed(()->player.setTime(start),500);handler.post(progress);
     }
+
+    private String openError(Uri uri){return isNetwork(uri)?"VLC could not open this network address. Check the server address and port.":"VLC could not open this file.";}
+
+    private void showPlaybackError(){
+        if(playbackErrorShown||isFinishing())return;playbackErrorShown=true;
+        if(!isNetwork(sourceUri)){new AlertDialog.Builder(this).setTitle("Video could not play").setMessage("VLC could not read or decode this file.").setPositiveButton("Close",(d,w)->finish()).show();return;}
+        String scheme=sourceUri.getScheme()==null?"network":sourceUri.getScheme().toUpperCase(Locale.US);
+        String message="The "+scheme+" server did not start playback. Check that the server is running, the address and port are correct, and this phone is on the right network.";
+        if("smb".equalsIgnoreCase(sourceUri.getScheme())||"sftp".equalsIgnoreCase(sourceUri.getScheme())||"ftp".equalsIgnoreCase(sourceUri.getScheme()))message+=" This server may require a login. Passwords are not stored in saved addresses.";
+        if("upnp".equalsIgnoreCase(sourceUri.getScheme()))message+=" Automatic UPnP device discovery is not available; use a direct playable address.";
+        new AlertDialog.Builder(this).setTitle("Network playback failed").setMessage(message).setNegativeButton("Close",(d,w)->finish()).setPositiveButton("Retry",(d,w)->{playbackErrorShown=false;if(player!=null)player.play();}).show();
+    }
+
+    private boolean isNetwork(Uri uri){if(uri==null||uri.getScheme()==null)return false;String scheme=uri.getScheme().toLowerCase(Locale.US);return !scheme.equals("content")&&!scheme.equals("file")&&!scheme.equals("android.resource");}
 
     private void buildScreen(String title){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.BLACK);root.setContentDescription("VLC Codec Player Ready");
