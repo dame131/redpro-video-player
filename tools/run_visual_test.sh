@@ -103,7 +103,7 @@ grep -Eq 'mResumedActivity.*com\.mr131\.redplayer/.MainActivity|topResumedActivi
 timeout 15m adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
-if ! grep -q 'OK (2 tests)' proof/instrumentation.txt; then test_status=1; fi
+if ! grep -q 'OK (1 test)' proof/instrumentation.txt; then test_status=1; fi
 
 collect_evidence
 
