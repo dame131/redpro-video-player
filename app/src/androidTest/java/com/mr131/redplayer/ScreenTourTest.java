@@ -49,9 +49,9 @@ public final class ScreenTourTest {
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
         device.waitForIdle();
-        File externalFiles = target.getExternalFilesDir(null);
-        assertNotNull("External app files directory is unavailable", externalFiles);
-        output = new File(externalFiles, "screenshots");
+        File internalFiles = target.getFilesDir();
+        assertNotNull("Internal app files directory is unavailable", internalFiles);
+        output = new File(internalFiles, "screenshots");
         deleteRecursively(output);
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
     }
