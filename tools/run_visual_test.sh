@@ -53,7 +53,18 @@ wait_for_android_ready() {
   timeout 15s adb shell uiautomator dump /sdcard/system-ready.xml >/dev/null 2>&1 || return 1
   timeout 15s adb pull /sdcard/system-ready.xml proof/device-state/system-ready.xml >/dev/null 2>&1 || return 1
   if grep -Eq 'android:id/aerr_wait|Process system isn.t responding' proof/device-state/system-ready.xml; then
-    return 1
+    # Package installation can briefly starve system_server on a cold CI emulator.
+    # Press the dialog's actual Wait button, then require two clean health checks.
+    read -r wait_x wait_y < <(python tools/anr_wait_coordinates.py proof/device-state/system-ready.xml) || return 1
+    timeout 10s adb shell input tap "$wait_x" "$wait_y" || return 1
+    for recovery_check in 1 2; do
+      sleep 10
+      timeout 5s adb shell service check activity 2>/dev/null | grep -q 'found' || return 1
+      timeout 15s adb shell uiautomator dump /sdcard/system-recovered.xml >/dev/null 2>&1 || return 1
+      timeout 15s adb pull /sdcard/system-recovered.xml proof/device-state/system-recovered-${recovery_check}.xml >/dev/null 2>&1 || return 1
+      grep -Eq 'android:id/aerr_wait|Process system isn.t responding' \
+        proof/device-state/system-recovered-${recovery_check}.xml && return 1
+    done
   fi
   return 0
 }
