@@ -108,10 +108,18 @@ timeout 15s adb shell am force-stop com.mr131.redplayer
 timeout 30s adb shell am start -S -n com.mr131.redplayer/.MainActivity | tee proof/launcher.txt
 launcher_status=${PIPESTATUS[0]}
 test "$launcher_status" -eq 0 || exit 15
-timeout 20s adb shell dumpsys activity activities > proof/device-state/launcher-activities.txt
-grep -Eq 'mResumedActivity.*com\.mr131\.redplayer/.MainActivity|topResumedActivity=.*com\.mr131\.redplayer/.MainActivity' \
-  proof/device-state/launcher-activities.txt || exit 17
-grep -q 'reportedDrawn=true' proof/device-state/launcher-activities.txt || exit 18
+launcher_drawn=0
+for attempt in $(seq 1 30); do
+  timeout 20s adb shell dumpsys activity activities > proof/device-state/launcher-activities.txt || exit 17
+  if grep -Eq 'mResumedActivity.*com\.mr131\.redplayer/.MainActivity|topResumedActivity=.*com\.mr131\.redplayer/.MainActivity' \
+      proof/device-state/launcher-activities.txt && \
+     grep -q 'reportedDrawn=true' proof/device-state/launcher-activities.txt; then
+    launcher_drawn=1
+    break
+  fi
+  sleep 1
+done
+test "$launcher_drawn" -eq 1 || exit 18
 
 # ScreenTourTest asserts the unique “131 Red Player Home Ready” marker in the
 # real launched activity before it is allowed to capture screenshot 01.
