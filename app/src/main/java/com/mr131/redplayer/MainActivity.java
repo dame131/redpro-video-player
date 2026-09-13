@@ -180,8 +180,15 @@ public class MainActivity extends AppCompatActivity {
         wireButtons();
         startIconEntrance();
         wireGestures();
-        startService(new Intent(this, PlaybackService.class));
-        connectPlayer(0);
+        // Let the first activity launch finish before asking Android to start the
+        // playback service. On slower devices, starting the service from inside
+        // onCreate can begin Android's service timeout while this large player UI
+        // is still being inflated and drawn.
+        playerView.post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            startService(new Intent(this, PlaybackService.class));
+            connectPlayer(0);
+        });
     }
 
     private void connectPlayer(int attempt) {
