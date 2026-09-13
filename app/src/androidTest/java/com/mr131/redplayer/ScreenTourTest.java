@@ -49,7 +49,10 @@ public final class ScreenTourTest {
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
         device.waitForIdle();
-        output = new File(target.getFilesDir(), "screenshots");
+        File internalFiles = target.getFilesDir();
+        assertNotNull("Internal app files directory is unavailable", internalFiles);
+        output = new File(internalFiles, "screenshots");
+        deleteRecursively(output);
         assertTrue("Could not create screenshot directory", output.isDirectory() || output.mkdirs());
     }
 
@@ -111,6 +114,12 @@ public final class ScreenTourTest {
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
         startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Mirror, flip & rotate video"),"video transform");capture("27-video-transform",By.text("Reset video transform"),true);
+        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
+        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
+        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
+        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
+        startScreen(AboutActivity.class);
+        capture("32-about-privacy", By.desc("About and Privacy Screen"), true);
     }
 
     private void startScreen(Class<?> screen) {
@@ -122,6 +131,8 @@ public final class ScreenTourTest {
     }
 
     private void startVlcScreen(){Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,VlcPlayerActivity.class).setData(installDemoVideo(target)).putExtra("title","demo.mp4").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);target.startActivity(intent);device.waitForIdle();}
+
+    private void openAdvanced(){clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");}
 
     private void clickResource(String id) {
         click(By.res(PACKAGE, id), id);
@@ -205,5 +216,14 @@ public final class ScreenTourTest {
         } finally {
             bitmap.recycle();
         }
+    }
+
+    private void deleteRecursively(File file) {
+        if (!file.exists()) return;
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) deleteRecursively(child);
+        }
+        assertTrue("Could not remove stale proof file: " + file, file.delete());
     }
 }

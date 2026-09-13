@@ -15,6 +15,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", type=Path)
     parser.add_argument("--required", nargs="*", default=[])
+    parser.add_argument("--reject-unexpected", action="store_true")
     args = parser.parse_args()
     images = sorted(args.directory.rglob("*.png")) if args.directory.exists() else []
     errors: list[str] = []
@@ -22,6 +23,11 @@ def main() -> int:
         errors.append("No screenshots were produced")
     names = {image.name for image in images}
     errors.extend(f"Missing required screenshot: {name}" for name in args.required if name not in names)
+    if args.reject_unexpected:
+        required = set(args.required)
+        errors.extend(f"Unexpected screenshot: {name}" for name in sorted(names - required))
+        if len(images) != len(args.required):
+            errors.append(f"Expected exactly {len(args.required)} screenshots, found {len(images)}")
     hashes: dict[str, Path] = {}
     for path in images:
         try:
@@ -32,7 +38,7 @@ def main() -> int:
                 if rgb.width < 320 or rgb.height < 480:
                     errors.append(f"Screenshot is too small: {path.name} ({rgb.width}x{rgb.height})")
                 variation = sum(ImageStat.Stat(rgb.resize((64, 64))).stddev) / 3
-                if variation < 1.0:
+                if variation < 2.0:
                     errors.append(f"Screenshot has almost no pixel variation: {path.name}")
         except Exception as exc:
             errors.append(f"Invalid PNG {path.name}: {exc}")
