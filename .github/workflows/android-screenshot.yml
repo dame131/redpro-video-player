@@ -36,7 +36,7 @@ jobs:
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Stop the build service before starting Android
         run: gradle --stop
-      - name: Launch the real app and capture every screen
+      - name: Launch the real app on an S24 Ultra viewport and capture every screen
         id: visual_test
         continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2

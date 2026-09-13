@@ -8,6 +8,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.net.Uri;
 
@@ -20,6 +21,7 @@ import androidx.test.uiautomator.StaleObjectException;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.FileProvider;
 
 import org.junit.Before;
@@ -120,6 +122,8 @@ public final class ScreenTourTest {
         startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
         startScreen(AboutActivity.class);
         capture("32-about-privacy", By.desc("About and Privacy Screen"), true);
+        captureThemedHome("33-home-light", AppCompatDelegate.MODE_NIGHT_NO);
+        captureThemedHome("34-home-night", AppCompatDelegate.MODE_NIGHT_YES);
     }
 
     private void startScreen(Class<?> screen) {
@@ -181,6 +185,36 @@ public final class ScreenTourTest {
         waitFor(By.desc("Forward 10 seconds"), "custom forward control");
         device.waitForIdle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
+    }
+
+    private void captureThemedHome(String name, int nightMode) {
+        device.pressBack();
+        if (homeScenario != null) homeScenario.close();
+        Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        String savedMode = nightMode == AppCompatDelegate.MODE_NIGHT_YES
+                ? RedPlayerTheme.MODE_NIGHT : RedPlayerTheme.MODE_BRIGHT;
+        target.getSharedPreferences("red_player", Context.MODE_PRIVATE).edit()
+                .putString(RedPlayerTheme.PREFERENCE_KEY, savedMode).commit();
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(
+                () -> AppCompatDelegate.setDefaultNightMode(nightMode));
+        homeScenario = ActivityScenario.launch(new Intent(Intent.ACTION_VIEW, installDemoVideo(target), target, MainActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+        homeScenario.onActivity(activity -> {
+            assertEquals("Themed home screen did not become ready",
+                    "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription());
+            int expectedUiMode = nightMode == AppCompatDelegate.MODE_NIGHT_YES
+                    ? Configuration.UI_MODE_NIGHT_YES : Configuration.UI_MODE_NIGHT_NO;
+            assertEquals("Wrong resource mode for " + name, expectedUiMode,
+                    activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK);
+        });
+        ensureAppForeground(name);
+        waitFor(By.text("demo.mp4"), name + " video title");
+        waitFor(By.desc("Video Ready"), name + " playable video frame");
+        waitFor(By.desc("Rewind 10 seconds"), name + " rewind control");
+        waitFor(By.desc("Play"), name + " play control");
+        waitFor(By.desc("Forward 10 seconds"), name + " forward control");
+        device.waitForIdle();
+        assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
 
     private Uri installDemoVideo(Context target) {

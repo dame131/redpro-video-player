@@ -5,6 +5,6 @@ import android.view.View;
 public final class RedPlayerBackground {
     private RedPlayerBackground() {}
     public static void apply(View view) {
-        if (view != null) view.setBackground(new IconicPatternDrawable());
+        if (view != null) view.setBackground(new IconicPatternDrawable(view.getContext()));
     }
 }

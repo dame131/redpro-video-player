@@ -1,1 +1,18 @@
-<selector xmlns:android="http://schemas.android.com/apk/res/android"><item android:state_pressed="true"><shape android:shape="oval"><gradient android:type="radial" android:gradientRadius="28dp" android:startColor="#99D60A00" android:endColor="#00151515"/></shape></item><item android:state_activated="true"><shape android:shape="oval"><gradient android:type="radial" android:gradientRadius="30dp" android:startColor="#66D60A00" android:endColor="#00151515"/></shape></item><item><shape android:shape="oval"><solid android:color="#00151515"/></shape></item></selector>
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <layer-list>
+            <item android:gravity="bottom" android:height="5dp" android:left="10dp" android:right="10dp">
+                <shape android:shape="rectangle"><corners android:radius="3dp"/><solid android:color="@color/accent_orange"/></shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_activated="true">
+        <layer-list>
+            <item android:gravity="bottom" android:height="4dp" android:left="10dp" android:right="10dp">
+                <shape android:shape="rectangle"><corners android:radius="3dp"/><solid android:color="@color/red_player"/></shape>
+            </item>
+        </layer-list>
+    </item>
+    <item><color android:color="@android:color/transparent"/></item>
+</selector>

@@ -16,7 +16,21 @@ def main() -> int:
     parser.add_argument("directory", type=Path)
     parser.add_argument("--required", nargs="*", default=[])
     parser.add_argument("--reject-unexpected", action="store_true")
+    parser.add_argument(
+        "--expect-size",
+        metavar="WIDTHxHEIGHT",
+        help="Require every screenshot to use this exact pixel size (for example 1440x3120)",
+    )
     args = parser.parse_args()
+    expected_size: tuple[int, int] | None = None
+    if args.expect_size:
+        try:
+            width, height = args.expect_size.lower().split("x", 1)
+            expected_size = (int(width), int(height))
+            if expected_size[0] <= 0 or expected_size[1] <= 0:
+                raise ValueError
+        except ValueError:
+            parser.error("--expect-size must be positive WIDTHxHEIGHT pixels")
     images = sorted(args.directory.rglob("*.png")) if args.directory.exists() else []
     errors: list[str] = []
     if not images:
@@ -37,6 +51,11 @@ def main() -> int:
                 rgb = image.convert("RGB")
                 if rgb.width < 320 or rgb.height < 480:
                     errors.append(f"Screenshot is too small: {path.name} ({rgb.width}x{rgb.height})")
+                if expected_size and rgb.size != expected_size:
+                    errors.append(
+                        f"Screenshot has wrong viewport: {path.name} "
+                        f"({rgb.width}x{rgb.height}, expected {expected_size[0]}x{expected_size[1]})"
+                    )
                 variation = sum(ImageStat.Stat(rgb.resize((64, 64))).stddev) / 3
                 if variation < 2.0:
                     errors.append(f"Screenshot has almost no pixel variation: {path.name}")

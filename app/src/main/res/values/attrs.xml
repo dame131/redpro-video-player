@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="redPlayerBackgroundColor" format="color" />
+    <attr name="redPlayerSurfaceColor" format="color" />
+    <attr name="redPlayerRaisedSurfaceColor" format="color" />
+    <attr name="redPlayerStrongSurfaceColor" format="color" />
+    <attr name="redPlayerTextPrimaryColor" format="color" />
+    <attr name="redPlayerTextSecondaryColor" format="color" />
+    <attr name="redPlayerWarmShadowColor" format="color" />
+    <attr name="redPlayerPatternHighlightColor" format="color" />
+</resources>
