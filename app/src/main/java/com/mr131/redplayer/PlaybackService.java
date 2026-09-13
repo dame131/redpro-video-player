@@ -35,6 +35,7 @@ public final class PlaybackService extends MediaSessionService {
     private static PlaybackService instance;
     private boolean softwareDecoder;
     private volatile boolean destroyed;
+    private boolean initializationStarted;
     private SharedPreferences resumeStore;
     private final Handler resumeHandler = new Handler(Looper.getMainLooper());
     private final Runnable saveProgress = new Runnable() {
@@ -53,6 +54,11 @@ public final class PlaybackService extends MediaSessionService {
         super.onCreate();
         instance = this;
         resumeStore = getSharedPreferences("playback_service_resume", MODE_PRIVATE);
+    }
+
+    private synchronized void initializePlayerAsync() {
+        if (initializationStarted || destroyed) return;
+        initializationStarted = true;
         // Codec discovery can stall a resource-limited device long enough for Android
         // to report a service ANR. Build off the main thread, then publish the player
         // on its application looper before the activity connects to it.
@@ -187,6 +193,7 @@ public final class PlaybackService extends MediaSessionService {
         // MainActivity starts this service explicitly; return immediately so a
         // repeated home launch can never be held inside MediaSessionService's
         // command routing while the codec/session is still warming up.
+        initializePlayerAsync();
         return START_STICKY;
     }
 
