@@ -28,12 +28,13 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 public final class PlaybackService extends MediaSessionService {
-    private static ExoPlayer player;
+    private static volatile ExoPlayer player;
     private MediaSession session;
     private static Equalizer equalizer;
     private static BassBoost bassBoost;
     private static PlaybackService instance;
     private boolean softwareDecoder;
+    private volatile boolean destroyed;
     private SharedPreferences resumeStore;
     private final Handler resumeHandler = new Handler(Looper.getMainLooper());
     private final Runnable saveProgress = new Runnable() {
@@ -52,11 +53,23 @@ public final class PlaybackService extends MediaSessionService {
         super.onCreate();
         instance = this;
         resumeStore = getSharedPreferences("playback_service_resume", MODE_PRIVATE);
-        player = buildPlayer(false);
-        configurePlayer(player);
-        restoreQueue();
-        session = new MediaSession.Builder(this, player).build();
-        resumeHandler.postDelayed(saveProgress, 10_000L);
+        // Codec discovery can stall a resource-limited device long enough for Android
+        // to report a service ANR. Build off the main thread, then publish the player
+        // on its application looper before the activity connects to it.
+        new Thread(() -> {
+            ExoPlayer created = buildPlayer(false);
+            resumeHandler.post(() -> {
+                if (destroyed) {
+                    created.release();
+                    return;
+                }
+                player = created;
+                configurePlayer(created);
+                restoreQueue();
+                session = new MediaSession.Builder(this, created).build();
+                resumeHandler.postDelayed(saveProgress, 10_000L);
+            });
+        }, "red-player-codec-init").start();
     }
 
     public static ExoPlayer player() { return player; }
@@ -69,6 +82,7 @@ public final class PlaybackService extends MediaSessionService {
             return preferred.isEmpty()?all:preferred;
         });
         return new ExoPlayer.Builder(this,renderers)
+                .setLooper(Looper.getMainLooper())
                 .setAudioAttributes(new AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
                 .setHandleAudioBecomingNoisy(true)
@@ -170,7 +184,7 @@ public final class PlaybackService extends MediaSessionService {
     @Nullable @Override public MediaSession onGetSession(MediaSession.ControllerInfo controllerInfo) { return session; }
 
     @Override public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
-        return START_STICKY;
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override public void onTaskRemoved(@Nullable Intent rootIntent) {
@@ -179,6 +193,7 @@ public final class PlaybackService extends MediaSessionService {
     }
 
     @Override public void onDestroy() {
+        destroyed = true;
         resumeHandler.removeCallbacks(saveProgress);
         saveQueue();
         if (equalizer != null) equalizer.release();

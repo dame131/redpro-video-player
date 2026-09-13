@@ -187,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
     private void connectPlayer(int attempt) {
         localPlayer = PlaybackService.player();
         if (localPlayer == null) {
-            if (attempt < 60) handler.postDelayed(() -> connectPlayer(attempt + 1), 50);
+            if (attempt < 600) handler.postDelayed(() -> connectPlayer(attempt + 1), 50);
             else toast("Playback service could not start");
             return;
         }

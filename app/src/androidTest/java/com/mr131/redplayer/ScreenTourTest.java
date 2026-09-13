@@ -36,7 +36,7 @@ import java.io.InputStream;
 @RunWith(AndroidJUnit4.class)
 public final class ScreenTourTest {
     private static final String PACKAGE = "com.mr131.redplayer";
-    private static final long SCREEN_TIMEOUT_MS = 15_000;
+    private static final long SCREEN_TIMEOUT_MS = 45_000;
 
     private UiDevice device;
     private File output;

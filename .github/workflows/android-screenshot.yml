@@ -45,7 +45,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          emulator-options: -no-window -no-snapshot -memory 3072 -cores 2 -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -no-snapshot -memory 4096 -cores 4 -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             bash tools/run_visual_test.sh
       - name: Upload APK, screenshots, UI tree, logs, and test report
