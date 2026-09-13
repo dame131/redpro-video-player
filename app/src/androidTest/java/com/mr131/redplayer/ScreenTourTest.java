@@ -74,7 +74,7 @@ public final class ScreenTourTest {
         clickResource("moreButton");
         click(By.text("Private vault"), "Private vault menu item");
         capture("04-private-vault", By.desc("Private Vault"), true);
-        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home after vault");
+        restartHome("home after vault");
         clickResource("searchButton");
         capture("05-search", By.text("Search videos"), true);
         device.pressBack();
@@ -100,7 +100,7 @@ public final class ScreenTourTest {
         capture("12-screen-12-technical-inspector", By.desc("Technical Inspector Screen 12"), true);
         startScreen(HistoryActivity.class);
         capture("13-screen-18-history-recovery", By.desc("History Screen 18"), true);
-        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home restart");
+        restartHome("home restart");
         clickResource("moreButton"); click(By.text("Equalizer & Bass"), "equalizer menu");
         capture("14-equalizer-bass", By.text("Equalizer & Bass Boost"), true); device.pressBack();
         clickResource("moreButton"); click(By.text("Sleep timer"), "sleep timer menu");
@@ -115,11 +115,11 @@ public final class ScreenTourTest {
         startScreen(TrashActivity.class);capture("23-video-trash",By.desc("Video Trash Screen"),true);startScreen(BookmarkActivity.class);capture("26-video-bookmarks",By.desc("Video Bookmarks Screen"),true);startScreen(PlaybackLabActivity.class);capture("25-playback-lab",By.desc("Playback Lab Screen"),true);
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
-        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Mirror, flip & rotate video"),"video transform");capture("27-video-transform",By.text("Reset video transform"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
+        restartHome("home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Mirror, flip & rotate video"),"video transform");capture("27-video-transform",By.text("Reset video transform"),true);
+        restartHome("home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
+        restartHome("home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
+        restartHome("home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
+        restartHome("home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
         startScreen(AboutActivity.class);
         capture("32-about-privacy", By.desc("About and Privacy Screen"), true);
         captureThemedHome("33-home-light", AppCompatDelegate.MODE_NIGHT_NO);
@@ -128,6 +128,14 @@ public final class ScreenTourTest {
 
     private void startScreen(Class<?> screen) {
         Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
+    }
+
+    private void restartHome(String label) {
+        if (homeScenario != null) homeScenario.close();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        homeScenario=ActivityScenario.launch(new Intent(Intent.ACTION_VIEW,installDemoVideo(target),target,MainActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+        waitFor(By.desc("131 Red Player Home Ready"),label);
     }
 
     private void startVideoHome() {
