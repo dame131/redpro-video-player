@@ -184,7 +184,10 @@ public final class PlaybackService extends MediaSessionService {
     @Nullable @Override public MediaSession onGetSession(MediaSession.ControllerInfo controllerInfo) { return session; }
 
     @Override public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
-        return super.onStartCommand(intent, flags, startId);
+        // MainActivity starts this service explicitly; return immediately so a
+        // repeated home launch can never be held inside MediaSessionService's
+        // command routing while the codec/session is still warming up.
+        return START_STICKY;
     }
 
     @Override public void onTaskRemoved(@Nullable Intent rootIntent) {
