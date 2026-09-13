@@ -145,7 +145,7 @@ test "$launcher_drawn" -eq 1 || exit 18
 
 # ScreenTourTest asserts the unique “131 Red Player Home Ready” marker in the
 # real launched activity before it is allowed to capture screenshot 01.
-timeout 15m adb shell am instrument -w -r \
+timeout 25m adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
 if ! grep -q 'OK (2 tests)' proof/instrumentation.txt; then test_status=1; fi

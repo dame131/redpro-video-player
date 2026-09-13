@@ -50,7 +50,7 @@ public final class ScreenTourTest {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
-        device.waitForIdle();
+        settle();
         File internalFiles = target.getFilesDir();
         assertNotNull("Internal app files directory is unavailable", internalFiles);
         output = new File(internalFiles, "screenshots");
@@ -127,7 +127,7 @@ public final class ScreenTourTest {
     }
 
     private void startScreen(Class<?> screen) {
-        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);settle();
     }
 
     private void restartHome(String label) {
@@ -139,10 +139,10 @@ public final class ScreenTourTest {
     }
 
     private void startVideoHome() {
-        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://example.com/test.mp4"),target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://example.com/test.mp4"),target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);settle();
     }
 
-    private void startVlcScreen(){Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,VlcPlayerActivity.class).setData(installDemoVideo(target)).putExtra("title","demo.mp4").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);target.startActivity(intent);device.waitForIdle();}
+    private void startVlcScreen(){Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,VlcPlayerActivity.class).setData(installDemoVideo(target)).putExtra("title","demo.mp4").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);target.startActivity(intent);settle();}
 
     private void openAdvanced(){clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");}
 
@@ -152,17 +152,17 @@ public final class ScreenTourTest {
 
     private void clickScrollableResource(int id) {
         onView(withId(id)).perform(androidx.test.espresso.action.ViewActions.click());
-        device.waitForIdle();
+        settle();
     }
 
     private void click(BySelector selector, String label) {
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
                 waitFor(selector, label).click();
-                device.waitForIdle();
+                settle();
                 return;
             } catch (StaleObjectException ignored) {
-                device.waitForIdle();
+                settle();
             }
         }
         throw new AssertionError("Screen control stayed stale: " + label);
@@ -178,7 +178,7 @@ public final class ScreenTourTest {
         if (appMustBeForeground) ensureAppForeground(name);
         assertTrue("Screen marker did not appear: " + name,
                 device.wait(Until.hasObject(marker), SCREEN_TIMEOUT_MS));
-        device.waitForIdle();
+        settle();
         assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
 
@@ -191,7 +191,7 @@ public final class ScreenTourTest {
         waitFor(By.desc("Rewind 10 seconds"), "custom rewind control");
         waitFor(By.desc("Play"), "custom play control");
         waitFor(By.desc("Forward 10 seconds"), "custom forward control");
-        device.waitForIdle();
+        settle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
     }
 
@@ -221,7 +221,7 @@ public final class ScreenTourTest {
         waitFor(By.desc("Rewind 10 seconds"), name + " rewind control");
         waitFor(By.desc("Play"), name + " play control");
         waitFor(By.desc("Forward 10 seconds"), name + " forward control");
-        device.waitForIdle();
+        settle();
         assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
 
@@ -258,6 +258,12 @@ public final class ScreenTourTest {
         } finally {
             bitmap.recycle();
         }
+    }
+
+    private void settle() {
+        // Video playback keeps producing background events, so an unbounded idle wait
+        // can consume the entire CI test window even when the visible UI is ready.
+        device.waitForIdle(2_000);
     }
 
     private void deleteRecursively(File file) {
