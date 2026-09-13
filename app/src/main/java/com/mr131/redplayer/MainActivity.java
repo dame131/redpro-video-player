@@ -261,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showNetworkStream() {
-        EditText input=new EditText(this);input.setHint("https://, http://, rtsp://, .m3u8, .mp4, .mkv");input.setSingleLine(true);input.setTextColor(getColor(R.color.text_primary));input.setHintTextColor(getColor(R.color.text_secondary));input.setBackgroundColor(android.graphics.getColor(R.color.surface_raised));input.setPadding(24,20,24,20);
+        EditText input=new EditText(this);input.setHint("https://, http://, rtsp://, .m3u8, .mp4, .mkv");input.setSingleLine(true);input.setTextColor(getColor(R.color.text_primary));input.setHintTextColor(getColor(R.color.text_secondary));input.setBackgroundColor(getColor(R.color.surface_raised));input.setPadding(24,20,24,20);
         new AlertDialog.Builder(this).setTitle("Open Network Stream").setMessage("Paste a direct video or live-stream address.").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Play",(d,w)->{
             String value=input.getText().toString().trim();Uri uri=Uri.parse(value);String scheme=uri.getScheme();
             if(value.isEmpty()||scheme==null||!(scheme.equalsIgnoreCase("http")||scheme.equalsIgnoreCase("https")||scheme.equalsIgnoreCase("rtsp"))){toast("Use a valid HTTP, HTTPS, or RTSP address");return;}
