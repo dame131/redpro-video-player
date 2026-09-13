@@ -1,1 +1,26 @@
-<resources><color name="red_player">#D60A00</color><color name="red_dark">#8B0008</color><color name="black">#000000</color><color name="panel">#151515</color><color name="carbon">#222222</color><color name="white">#FFFFFF</color><color name="muted">#BDBDBD</color></resources>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warm daylight palette. Intentionally contains no blue, cyan, or teal hues. -->
+    <color name="red_player">#D92D20</color>
+    <color name="red_dark">#861820</color>
+    <color name="black">#100A0B</color>
+    <color name="panel">#FFF8E7</color>
+    <color name="carbon">#FFE3A1</color>
+    <color name="white">#2B1715</color>
+    <color name="muted">#79554B</color>
+    <color name="app_background">#FFF1B8</color>
+    <color name="surface">#FFF9E9</color>
+    <color name="surface_raised">#FFE3A1</color>
+    <color name="surface_strong">#4A211E</color>
+    <color name="text_primary">#2B1715</color>
+    <color name="text_secondary">#79554B</color>
+    <color name="text_on_accent">#FFF8E7</color>
+    <color name="accent_orange">#F36B24</color>
+    <color name="accent_yellow">#F3C431</color>
+    <color name="accent_lime">#8DBD35</color>
+    <color name="accent_purple">#9139B8</color>
+    <color name="accent_cream">#FFF0C7</color>
+    <color name="warm_shadow">#5B201D</color>
+    <color name="pattern_highlight">#FFF7D8</color>
+    <color name="selection_highlight">#66F36B24</color>
+</resources>

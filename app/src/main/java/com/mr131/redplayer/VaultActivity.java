@@ -79,8 +79,8 @@ public final class VaultActivity extends AppCompatActivity {
         lockedView.setGravity(Gravity.CENTER); lockedView.setPadding(dp(28),dp(28),dp(28),dp(28));
         RedPlayerBackground.apply(lockedView);
         lockedView.addView(LuxuryIconView.create(this,R.drawable.icon_vault_thick,"Private Vault emblem"));
-        TextView title = text("PRIVATE MEDIA VAULT", 25, Color.WHITE); title.setContentDescription("Private Vault"); lockedView.addView(title);
-        lockedView.addView(text("Protected by your fingerprint or private PIN",15,Color.LTGRAY));
+        TextView title = text("PRIVATE MEDIA VAULT", 25, getColor(R.color.text_primary)); title.setContentDescription("Private Vault"); lockedView.addView(title);
+        lockedView.addView(text("Protected by your fingerprint or private PIN",15,getColor(R.color.text_secondary)));
         Button fingerprint=button("UNLOCK WITH FINGERPRINT"); fingerprint.setOnClickListener(v->unlockBiometric()); lockedView.addView(fingerprint);
         Button pin=button(hasPin()?"UNLOCK WITH PIN":"CREATE VAULT PIN"); pin.setOnClickListener(v->showPin()); lockedView.addView(pin);
         setContentView(lockedView);
@@ -95,7 +95,7 @@ public final class VaultActivity extends AppCompatActivity {
     }
 
     private void showPin() {
-        EditText input=new EditText(this); input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD); input.setHint("4–8 digit PIN");input.setTextColor(Color.WHITE);input.setHintTextColor(Color.LTGRAY);input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));
+        EditText input=new EditText(this); input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD); input.setHint("4–8 digit PIN");input.setTextColor(getColor(R.color.text_primary));input.setHintTextColor(getColor(R.color.text_secondary));input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));
         boolean creating=!hasPin();
         new AlertDialog.Builder(this).setTitle(creating?"Create vault PIN":"Enter vault PIN").setView(input).setNegativeButton("Cancel",null).setPositiveButton(creating?"Save":"Unlock",(d,w)->{
             String pin=input.getText().toString();
@@ -107,11 +107,11 @@ public final class VaultActivity extends AppCompatActivity {
     private void showVault() {
         vaultUnlocked=true;
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(12),dp(14),dp(12));RedPlayerBackground.apply(root);
-        root.addView(LuxuryIconView.create(this,R.drawable.icon_vault_thick,"Private Vault emblem"));TextView title=text("PRIVATE MEDIA VAULT",24,Color.WHITE);title.setContentDescription("Vault Unlocked");root.addView(title);
+        root.addView(LuxuryIconView.create(this,R.drawable.icon_vault_thick,"Private Vault emblem"));TextView title=text("PRIVATE MEDIA VAULT",24,getColor(R.color.text_primary));title.setContentDescription("Vault Unlocked");root.addView(title);
         Button add=button("ADD PRIVATE VIDEO");add.setOnClickListener(v->picker.launch(new String[]{"video/*"}));root.addView(add);
         Button changePin=button("CHANGE VAULT PIN");changePin.setOnClickListener(v->showChangePin());root.addView(changePin);
         Button lock=button("LOCK VAULT NOW");lock.setOnClickListener(v->{vaultUnlocked=false;clearPlaybackCache();showLockedScreen();});root.addView(lock);
-        ListView list=new ListView(this);adapter=new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,names){@NonNull @Override public View getView(int p,View c,@NonNull android.view.ViewGroup g){TextView v=(TextView)super.getView(p,c,g);v.setTextColor(Color.WHITE);v.setMinHeight(dp(60));return v;}};list.setAdapter(adapter);
+        ListView list=new ListView(this);adapter=new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,names){@NonNull @Override public View getView(int p,View c,@NonNull android.view.ViewGroup g){TextView v=(TextView)super.getView(p,c,g);v.setTextColor(getColor(R.color.text_primary));v.setMinHeight(dp(60));return v;}};list.setAdapter(adapter);
         list.setOnItemClickListener((p,v,i,id)->openEncryptedVideo(files.get(i),names.get(i)));
         list.setOnItemLongClickListener((p,v,i,id)->{showFileActions(files.get(i),names.get(i));return true;});
         root.addView(list,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);reload();new Thread(this::migrateLegacyVault,"vault-migrate").start();
@@ -126,7 +126,7 @@ public final class VaultActivity extends AppCompatActivity {
     }
 
     private void showRename(File file,String currentName){
-        EditText input=new EditText(this);input.setSingleLine(true);input.setText(currentName);input.setSelection(currentName.length());input.setTextColor(Color.WHITE);input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));
+        EditText input=new EditText(this);input.setSingleLine(true);input.setText(currentName);input.setSelection(currentName.length());input.setTextColor(getColor(R.color.text_primary));input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));
         new AlertDialog.Builder(this).setTitle("Rename private video").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Rename",(d,w)->{
             String safe=input.getText().toString().trim().replaceAll("[^a-zA-Z0-9._ -]","_");
             if(safe.length()>120)safe=safe.substring(0,120).trim();
@@ -155,7 +155,7 @@ public final class VaultActivity extends AppCompatActivity {
         }).show();
     }
 
-    private EditText pinField(String hint){EditText input=new EditText(this);input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);input.setHint(hint);input.setTextColor(Color.WHITE);input.setHintTextColor(Color.LTGRAY);input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));return input;}
+    private EditText pinField(String hint){EditText input=new EditText(this);input.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);input.setHint(hint);input.setTextColor(getColor(R.color.text_primary));input.setHintTextColor(getColor(R.color.text_secondary));input.setBackgroundColor(getColor(R.color.carbon));input.setPadding(dp(16),dp(12),dp(16),dp(12));return input;}
 
     private void importVideo(Uri uri) {
         File folder=new File(getFilesDir(),"vault"); if(!folder.isDirectory()&&!folder.mkdirs()){toast("Could not create vault");return;}
@@ -182,7 +182,7 @@ public final class VaultActivity extends AppCompatActivity {
     private boolean hasPin(){return !getPreferences(MODE_PRIVATE).getString("pin","").isEmpty();}
     private String hash(String value){try{android.content.SharedPreferences p=getPreferences(MODE_PRIVATE);String stored=p.getString("pin_salt","");byte[] salt;if(stored.isEmpty()){salt=new byte[16];new SecureRandom().nextBytes(salt);p.edit().putString("pin_salt",Base64.encodeToString(salt,Base64.NO_WRAP)).apply();}else salt=Base64.decode(stored,Base64.NO_WRAP);PBEKeySpec spec=new PBEKeySpec(value.toCharArray(),salt,120000,256);byte[] b=SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded();spec.clearPassword();return Base64.encodeToString(b,Base64.NO_WRAP);}catch(Exception e){return "";}}
     private String displayName(Uri uri){try(android.database.Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst())return c.getString(0);}catch(Exception ignored){}return "private-video";}
-    private Button button(String label){Button b=new Button(this);b.setText(label);b.setTextColor(Color.WHITE);b.setBackgroundColor(getColor(R.color.red_player));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(52));p.setMargins(0,dp(12),0,0);b.setLayoutParams(p);return b;}
+    private Button button(String label){Button b=new Button(this);b.setText(label);b.setTextColor(getColor(R.color.text_primary));b.setBackgroundColor(getColor(R.color.red_player));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(52));p.setMargins(0,dp(12),0,0);b.setLayoutParams(p);return b;}
     private TextView text(String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setGravity(Gravity.CENTER);t.setPadding(0,dp(8),0,dp(8));return t;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}

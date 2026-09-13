@@ -12,17 +12,19 @@ import android.view.animation.DecelerateInterpolator;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageButton;
 
-/** A borderless icon with thick crimson sides and a bright chrome face. */
+/** A borderless, freestanding icon with an extra-thick warm clay extrusion. */
 public final class ChromeIconButton extends AppCompatImageButton {
     private float pulse;
     private boolean active;
     private ValueAnimator animator;
+    private ThemePalette colors;
 
     public ChromeIconButton(Context c) { super(c); prepare(); }
     public ChromeIconButton(Context c, @Nullable AttributeSet a) { super(c,a); prepare(); }
     public ChromeIconButton(Context c, @Nullable AttributeSet a, int s) { super(c,a,s); prepare(); }
 
     private void prepare() {
+        colors = ThemePalette.from(getContext());
         setBackgroundColor(Color.TRANSPARENT);
         setLayerType(LAYER_TYPE_SOFTWARE, null);
     }
@@ -45,24 +47,35 @@ public final class ChromeIconButton extends AppCompatImageButton {
         Drawable icon=getDrawable();
         if(icon==null){super.onDraw(canvas);return;}
         if("raw_asset".equals(String.valueOf(getTag()))) {
+            Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
+            int side=colors.claySide(colors.accentFor(getContentDescription()));
+            for(int layer=9;layer>=1;layer--){
+                icon.setColorFilter(side,PorterDuff.Mode.SRC_IN);
+                canvas.save();canvas.translate(dp(layer*.52f),dp(layer*.52f));icon.draw(canvas);canvas.restore();
+            }
+            icon.setColorFilter(null);icon.setCallback(callback);
             super.onDraw(canvas);
-            float colorPulse=Math.max(pulse,active?.22f:0f);
+            float colorPulse=Math.max(pulse,active?.24f:0f);
             if(colorPulse>0f){
-                Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
-                icon.setColorFilter(Color.argb((int)(150*colorPulse),214,10,0),PorterDuff.Mode.SRC_ATOP);
+                callback=icon.getCallback();icon.setCallback(null);
+                icon.setColorFilter(colors.withAlpha(colors.orange,(int)(145*colorPulse)),PorterDuff.Mode.SRC_ATOP);
                 icon.draw(canvas);icon.setColorFilter(null);icon.setCallback(callback);
             }
             return;
         }
         Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
-        for(int layer=8;layer>=1;layer--){icon.setColorFilter(Color.rgb(55+layer*8,2,2),PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(layer*.76f,layer*.76f);icon.draw(canvas);canvas.restore();}
-        icon.setColorFilter(Color.rgb(9,10,12),PorterDuff.Mode.SRC_IN);
-        canvas.save();canvas.translate(-2.2f,-1.2f);icon.draw(canvas);canvas.restore();
-        int silver=(int)(230*(1f-pulse));int faceRed=(int)(214*pulse);
-        icon.setColorFilter(Color.rgb(Math.max(faceRed,silver),Math.max(10,(int)(235*(1f-pulse))),Math.max(8,(int)(242*(1f-pulse)))),PorterDuff.Mode.SRC_IN);icon.draw(canvas);
-        icon.setColorFilter(Color.argb(165,255,255,255),PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(-1.1f,-1.1f);icon.draw(canvas);canvas.restore();
+        int face=colors.accentFor(getContentDescription());
+        int side=colors.claySide(face);
+        for(int layer=10;layer>=1;layer--){icon.setColorFilter(side,PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(dp(layer*.5f),dp(layer*.5f));icon.draw(canvas);canvas.restore();}
+        icon.setColorFilter(colors.shadow,PorterDuff.Mode.SRC_IN);
+        canvas.save();canvas.translate(-dp(.75f),-dp(.45f));icon.draw(canvas);canvas.restore();
+        int liveFace=androidx.core.graphics.ColorUtils.blendARGB(face,colors.orange,Math.max(pulse,active?.18f:0f));
+        icon.setColorFilter(liveFace,PorterDuff.Mode.SRC_IN);icon.draw(canvas);
+        icon.setColorFilter(colors.withAlpha(colors.highlight,145),PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(-dp(.38f),-dp(.38f));icon.draw(canvas);canvas.restore();
         icon.setColorFilter(null);icon.setCallback(callback);
     }
+
+    private float dp(float value){return value*getResources().getDisplayMetrics().density;}
 
     @Override protected void onDetachedFromWindow(){if(animator!=null)animator.cancel();super.onDetachedFromWindow();}
 }

@@ -8,6 +8,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.net.Uri;
 
@@ -20,6 +21,7 @@ import androidx.test.uiautomator.StaleObjectException;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.FileProvider;
 
 import org.junit.Before;
@@ -34,7 +36,7 @@ import java.io.InputStream;
 @RunWith(AndroidJUnit4.class)
 public final class ScreenTourTest {
     private static final String PACKAGE = "com.mr131.redplayer";
-    private static final long SCREEN_TIMEOUT_MS = 15_000;
+    private static final long SCREEN_TIMEOUT_MS = 45_000;
 
     private UiDevice device;
     private File output;
@@ -48,7 +50,7 @@ public final class ScreenTourTest {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
         homeScenario.onActivity(activity -> assertEquals("Home screen did not become ready",
                 "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription()));
-        device.waitForIdle();
+        settle();
         File internalFiles = target.getFilesDir();
         assertNotNull("Internal app files directory is unavailable", internalFiles);
         output = new File(internalFiles, "screenshots");
@@ -72,7 +74,7 @@ public final class ScreenTourTest {
         clickResource("moreButton");
         click(By.text("Private vault"), "Private vault menu item");
         capture("04-private-vault", By.desc("Private Vault"), true);
-        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home after vault");
+        restartHome("home after vault");
         clickResource("searchButton");
         capture("05-search", By.text("Search videos"), true);
         device.pressBack();
@@ -98,7 +100,7 @@ public final class ScreenTourTest {
         capture("12-screen-12-technical-inspector", By.desc("Technical Inspector Screen 12"), true);
         startScreen(HistoryActivity.class);
         capture("13-screen-18-history-recovery", By.desc("History Screen 18"), true);
-        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home restart");
+        restartHome("home restart");
         clickResource("moreButton"); click(By.text("Equalizer & Bass"), "equalizer menu");
         capture("14-equalizer-bass", By.text("Equalizer & Bass Boost"), true); device.pressBack();
         clickResource("moreButton"); click(By.text("Sleep timer"), "sleep timer menu");
@@ -113,24 +115,34 @@ public final class ScreenTourTest {
         startScreen(TrashActivity.class);capture("23-video-trash",By.desc("Video Trash Screen"),true);startScreen(BookmarkActivity.class);capture("26-video-bookmarks",By.desc("Video Bookmarks Screen"),true);startScreen(PlaybackLabActivity.class);capture("25-playback-lab",By.desc("Playback Lab Screen"),true);
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
-        startScreen(MainActivity.class); waitFor(By.desc("131 Red Player Home Ready"), "home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Mirror, flip & rotate video"),"video transform");capture("27-video-transform",By.text("Reset video transform"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
-        startScreen(MainActivity.class);waitFor(By.desc("131 Red Player Home Ready"),"home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
+        restartHome("home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Mirror, flip & rotate video"),"video transform");capture("27-video-transform",By.text("Reset video transform"),true);
+        restartHome("home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
+        restartHome("home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
+        restartHome("home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
+        restartHome("home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
         startScreen(AboutActivity.class);
         capture("32-about-privacy", By.desc("About and Privacy Screen"), true);
+        captureThemedHome("33-home-light", AppCompatDelegate.MODE_NIGHT_NO);
+        captureThemedHome("34-home-night", AppCompatDelegate.MODE_NIGHT_YES);
     }
 
     private void startScreen(Class<?> screen) {
-        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);settle();
+    }
+
+    private void restartHome(String label) {
+        if (homeScenario != null) homeScenario.close();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        homeScenario=ActivityScenario.launch(new Intent(Intent.ACTION_VIEW,installDemoVideo(target),target,MainActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+        waitFor(By.desc("131 Red Player Home Ready"),label);
     }
 
     private void startVideoHome() {
-        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://example.com/test.mp4"),target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);device.waitForIdle();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://example.com/test.mp4"),target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);target.startActivity(intent);settle();
     }
 
-    private void startVlcScreen(){Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,VlcPlayerActivity.class).setData(installDemoVideo(target)).putExtra("title","demo.mp4").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);target.startActivity(intent);device.waitForIdle();}
+    private void startVlcScreen(){Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=new Intent(target,VlcPlayerActivity.class).setData(installDemoVideo(target)).putExtra("title","demo.mp4").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_GRANT_READ_URI_PERMISSION);target.startActivity(intent);settle();}
 
     private void openAdvanced(){clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");}
 
@@ -140,17 +152,17 @@ public final class ScreenTourTest {
 
     private void clickScrollableResource(int id) {
         onView(withId(id)).perform(androidx.test.espresso.action.ViewActions.click());
-        device.waitForIdle();
+        settle();
     }
 
     private void click(BySelector selector, String label) {
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
                 waitFor(selector, label).click();
-                device.waitForIdle();
+                settle();
                 return;
             } catch (StaleObjectException ignored) {
-                device.waitForIdle();
+                settle();
             }
         }
         throw new AssertionError("Screen control stayed stale: " + label);
@@ -166,7 +178,7 @@ public final class ScreenTourTest {
         if (appMustBeForeground) ensureAppForeground(name);
         assertTrue("Screen marker did not appear: " + name,
                 device.wait(Until.hasObject(marker), SCREEN_TIMEOUT_MS));
-        device.waitForIdle();
+        settle();
         assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
 
@@ -179,8 +191,38 @@ public final class ScreenTourTest {
         waitFor(By.desc("Rewind 10 seconds"), "custom rewind control");
         waitFor(By.desc("Play"), "custom play control");
         waitFor(By.desc("Forward 10 seconds"), "custom forward control");
-        device.waitForIdle();
+        settle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
+    }
+
+    private void captureThemedHome(String name, int nightMode) {
+        device.pressBack();
+        if (homeScenario != null) homeScenario.close();
+        Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        String savedMode = nightMode == AppCompatDelegate.MODE_NIGHT_YES
+                ? RedPlayerTheme.MODE_NIGHT : RedPlayerTheme.MODE_BRIGHT;
+        target.getSharedPreferences("red_player", Context.MODE_PRIVATE).edit()
+                .putString(RedPlayerTheme.PREFERENCE_KEY, savedMode).commit();
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(
+                () -> AppCompatDelegate.setDefaultNightMode(nightMode));
+        homeScenario = ActivityScenario.launch(new Intent(Intent.ACTION_VIEW, installDemoVideo(target), target, MainActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+        homeScenario.onActivity(activity -> {
+            assertEquals("Themed home screen did not become ready",
+                    "131 Red Player Home Ready", activity.findViewById(R.id.root).getContentDescription());
+            int expectedUiMode = nightMode == AppCompatDelegate.MODE_NIGHT_YES
+                    ? Configuration.UI_MODE_NIGHT_YES : Configuration.UI_MODE_NIGHT_NO;
+            assertEquals("Wrong resource mode for " + name, expectedUiMode,
+                    activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK);
+        });
+        ensureAppForeground(name);
+        waitFor(By.text("demo.mp4"), name + " video title");
+        waitFor(By.desc("Video Ready"), name + " playable video frame");
+        waitFor(By.desc("Rewind 10 seconds"), name + " rewind control");
+        waitFor(By.desc("Play"), name + " play control");
+        waitFor(By.desc("Forward 10 seconds"), name + " forward control");
+        settle();
+        assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
 
     private Uri installDemoVideo(Context target) {
@@ -216,6 +258,12 @@ public final class ScreenTourTest {
         } finally {
             bitmap.recycle();
         }
+    }
+
+    private void settle() {
+        // Video playback keeps producing background events, so an unbounded idle wait
+        // can consume the entire CI test window even when the visible UI is ready.
+        device.waitForIdle(2_000);
     }
 
     private void deleteRecursively(File file) {

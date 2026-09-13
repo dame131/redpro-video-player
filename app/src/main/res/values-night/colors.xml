@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Burgundy-charcoal night palette. Intentionally contains no blue, cyan, or teal hues. -->
+    <color name="red_player">#FF4933</color>
+    <color name="red_dark">#8D1824</color>
+    <color name="black">#080506</color>
+    <color name="panel">#251116</color>
+    <color name="carbon">#3A191E</color>
+    <color name="white">#FFF2D8</color>
+    <color name="muted">#D5AD98</color>
+    <color name="app_background">#14090D</color>
+    <color name="surface">#251116</color>
+    <color name="surface_raised">#3A191E</color>
+    <color name="surface_strong">#080506</color>
+    <color name="text_primary">#FFF2D8</color>
+    <color name="text_secondary">#D5AD98</color>
+    <color name="text_on_accent">#24090D</color>
+    <color name="accent_orange">#FF7A2F</color>
+    <color name="accent_yellow">#FFD447</color>
+    <color name="accent_lime">#A8D84E</color>
+    <color name="accent_purple">#B64BCE</color>
+    <color name="accent_cream">#FFE9B5</color>
+    <color name="warm_shadow">#26070C</color>
+    <color name="pattern_highlight">#F4CFA4</color>
+    <color name="selection_highlight">#66FF7A2F</color>
+</resources>

@@ -35,15 +35,15 @@ public final class NetworkSourcesActivity extends AppCompatActivity {
         super.onCreate(state);setTitle("Network Sources");load();sortSources();
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(14),dp(16),dp(14));RedPlayerBackground.apply(root);
         root.addView(LuxuryIconView.create(this,R.drawable.icon_network_thick,"Network Sources emblem"));
-        TextView title=text("NETWORK & HOME SERVER",24,Color.WHITE);title.setContentDescription("Network Sources Screen");root.addView(title);
-        root.addView(text("HTTP/HLS • RTSP • SMB • FTP/SFTP • NFS • UDP/RTP • UPnP",14,Color.LTGRAY));
-        root.addView(text("Add a port when your server requires one, for example :8080. Login details are never saved here.",13,Color.LTGRAY));
+        TextView title=text("NETWORK & HOME SERVER",24,getColor(R.color.text_primary));title.setContentDescription("Network Sources Screen");root.addView(title);
+        root.addView(text("HTTP/HLS • RTSP • SMB • FTP/SFTP • NFS • UDP/RTP • UPnP",14,getColor(R.color.text_secondary)));
+        root.addView(text("Add a port when your server requires one, for example :8080. Login details are never saved here.",13,getColor(R.color.text_secondary)));
         Button add=button("ADD NETWORK ADDRESS");add.setOnClickListener(v->showSourceEditor(null));root.addView(add);
         ListView list=new ListView(this);
         adapter=new ArrayAdapter<Source>(this,android.R.layout.simple_list_item_2,android.R.id.text1,sources){
             @Override public android.view.View getView(int p,android.view.View c,android.view.ViewGroup g){
                 android.view.View row=super.getView(p,c,g);TextView primary=row.findViewById(android.R.id.text1);TextView secondary=row.findViewById(android.R.id.text2);Source source=getItem(p);
-                primary.setText((source.favorite?"★  ":"")+source.name);primary.setTextColor(Color.WHITE);primary.setTextSize(17);secondary.setText(source.address);secondary.setTextColor(Color.LTGRAY);row.setMinimumHeight(dp(72));return row;
+                primary.setText((source.favorite?"★  ":"")+source.name);primary.setTextColor(getColor(R.color.text_primary));primary.setTextSize(17);secondary.setText(source.address);secondary.setTextColor(getColor(R.color.text_secondary));row.setMinimumHeight(dp(72));return row;
             }
         };
         list.setAdapter(adapter);list.setOnItemClickListener((p,v,i,id)->play(sources.get(i)));
@@ -113,8 +113,8 @@ public final class NetworkSourcesActivity extends AppCompatActivity {
     }
     private void save(){try{JSONArray a=new JSONArray();for(Source source:sources){JSONObject o=new JSONObject();o.put("name",source.name);o.put("address",source.address);o.put("favorite",source.favorite);o.put("lastUsed",source.lastUsed);a.put(o);}getSharedPreferences("red_player",MODE_PRIVATE).edit().putString("network_sources",a.toString()).apply();}catch(Exception ignored){toast("Could not save network sources");}}
 
-    private EditText input(String hint){EditText field=new EditText(this);field.setHint(hint);field.setSingleLine(true);field.setTextColor(Color.WHITE);field.setHintTextColor(Color.LTGRAY);field.setBackgroundColor(getColor(R.color.carbon));field.setPadding(dp(12),dp(12),dp(12),dp(12));LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,dp(58));params.setMargins(0,dp(8),0,0);field.setLayoutParams(params);return field;}
-    private Button button(String value){Button b=new Button(this);b.setText(value);b.setTextColor(Color.WHITE);b.setBackgroundColor(getColor(R.color.red_player));b.setMinHeight(dp(52));return b;}
+    private EditText input(String hint){EditText field=new EditText(this);field.setHint(hint);field.setSingleLine(true);field.setTextColor(getColor(R.color.text_primary));field.setHintTextColor(getColor(R.color.text_secondary));field.setBackgroundColor(getColor(R.color.carbon));field.setPadding(dp(12),dp(12),dp(12),dp(12));LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,dp(58));params.setMargins(0,dp(8),0,0);field.setLayoutParams(params);return field;}
+    private Button button(String value){Button b=new Button(this);b.setText(value);b.setTextColor(getColor(R.color.text_primary));b.setBackgroundColor(getColor(R.color.red_player));b.setMinHeight(dp(52));return b;}
     private TextView text(String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setGravity(Gravity.CENTER);t.setPadding(0,dp(8),0,dp(8));return t;}
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
     private void toast(String v){Toast.makeText(this,v,Toast.LENGTH_LONG).show();}

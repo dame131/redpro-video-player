@@ -60,7 +60,7 @@ public final class VlcPlayerActivity extends AppCompatActivity {
         media.setHWDecoderEnabled(false,false);media.addOption(":codec=all");
         String[] encodings={"","UTF-8","Windows-1252","ISO-8859-1","UTF-16"};int encoding=prefs.getInt("subtitle_encoding",0);if(encoding>0&&encoding<encodings.length)media.addOption(":subsdec-encoding="+encodings[encoding]);String[] deinterlace={"","auto","yadif","blend"};int di=prefs.getInt("vlc_deinterlace",0);if(di>0&&di<deinterlace.length){media.addOption(":deinterlace=1");media.addOption(":deinterlace-mode="+deinterlace[di]);}
         player.setMedia(media);media.release();
-        player.setEventListener(event->{if(event.type==MediaPlayer.Event.EncounteredError)runOnUiThread(this::showPlaybackError);if(event.type==MediaPlayer.Event.EndReached)runOnUiThread(this::finish);});
+        player.setEventListener(event->{if(event.type==MediaPlayer.Event.EncounteredError)runOnUiThread(this::showPlaybackError);if(event.type==MediaPlayer.Event.EndReached)runOnUiThread(()->seek.setProgress(1000));});
         player.play();player.setVolume(prefs.getInt("vlc_volume",100));player.setAudioDelay(prefs.getInt("vlc_audio_delay",0)*1000L);player.setSpuDelay(prefs.getInt("vlc_subtitle_delay",0)*1000L);long start=getIntent().getLongExtra("position",0);if(start>0)handler.postDelayed(()->player.setTime(start),500);handler.post(progress);
     }
 
@@ -80,14 +80,14 @@ public final class VlcPlayerActivity extends AppCompatActivity {
 
     private void buildScreen(String title){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.BLACK);root.setContentDescription("VLC Codec Player Ready");
-        TextView heading=new ChromePulseTextView(this);heading.setText((title==null?"VIDEO":title)+"  •  VLC CODEC");heading.setTextSize(17);heading.setTextColor(Color.WHITE);heading.setGravity(Gravity.CENTER_VERTICAL);heading.setPadding(dp(16),0,dp(16),0);root.addView(heading,new LinearLayout.LayoutParams(-1,dp(54)));
+        TextView heading=new ChromePulseTextView(this);heading.setText((title==null?"VIDEO":title)+"  •  VLC CODEC");heading.setTextSize(17);heading.setTextColor(getColor(R.color.text_primary));heading.setGravity(Gravity.CENTER_VERTICAL);heading.setPadding(dp(16),0,dp(16),0);root.addView(heading,new LinearLayout.LayoutParams(-1,dp(54)));
         FrameLayout stage=new FrameLayout(this);video=new VLCVideoLayout(this);stage.addView(video,new FrameLayout.LayoutParams(-1,-1));controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER);controls.setOrientation(LinearLayout.HORIZONTAL);
         ChromeIconButton back=icon(R.drawable.icon_rewind_10_thick,"Rewind 10 seconds");back.setOnClickListener(v->player.setTime(Math.max(0,player.getTime()-10000)));
-        ChromeIconButton play=icon(R.drawable.icon_play_pause_thick,"Play or pause");play.setOnClickListener(v->{if(player.isPlaying())player.pause();else player.play();});
+        ChromeIconButton play=icon(R.drawable.icon_play_pause_thick,"Play or pause");play.setOnClickListener(v->{if(player.isPlaying())player.pause();else{if(player.getLength()>0&&player.getTime()>=player.getLength()-250)player.setTime(0);player.play();}});
         ChromeIconButton next=icon(R.drawable.icon_forward_10_thick,"Forward 10 seconds");next.setOnClickListener(v->player.setTime(Math.min(player.getLength(),player.getTime()+10000)));
         ChromeIconButton pip=icon(R.drawable.icon_pip_thick,"Picture in picture");pip.setOnClickListener(v->enterPictureInPictureMode(new PictureInPictureParams.Builder().setAspectRatio(new Rational(16,9)).build()));
         controls.addView(back);controls.addView(play);controls.addView(next);controls.addView(pip);stage.addView(controls,new FrameLayout.LayoutParams(-1,dp(86),Gravity.CENTER));root.addView(stage,new LinearLayout.LayoutParams(-1,0,1));
-        LinearLayout timeline=new LinearLayout(this);timeline.setGravity(Gravity.CENTER_VERTICAL);timeline.setPadding(dp(12),0,dp(12),0);seek=new SeekBar(this);seek.setMax(1000);seek.getProgressDrawable().setTint(getColor(R.color.red_player));seek.getThumb().setTint(getColor(R.color.red_player));timeline.addView(seek,new LinearLayout.LayoutParams(0,dp(48),1));time=new ChromePulseTextView(this);time.setText("0:00 / 0:00");time.setTextColor(Color.WHITE);timeline.addView(time,new LinearLayout.LayoutParams(dp(118),dp(48)));root.addView(timeline);
+        LinearLayout timeline=new LinearLayout(this);timeline.setGravity(Gravity.CENTER_VERTICAL);timeline.setPadding(dp(12),0,dp(12),0);seek=new SeekBar(this);seek.setMax(1000);seek.getProgressDrawable().setTint(getColor(R.color.red_player));seek.getThumb().setTint(getColor(R.color.red_player));timeline.addView(seek,new LinearLayout.LayoutParams(0,dp(48),1));time=new ChromePulseTextView(this);time.setText("0:00 / 0:00");time.setTextColor(getColor(R.color.text_primary));timeline.addView(time,new LinearLayout.LayoutParams(dp(118),dp(48)));root.addView(timeline);
         seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int p,boolean user){if(user&&player!=null&&player.getLength()>0)player.setTime(player.getLength()*p/1000);}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});
         setContentView(root);
     }

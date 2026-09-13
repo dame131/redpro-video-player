@@ -1,5 +1,6 @@
 package com.mr131.redplayer;
 
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
@@ -11,74 +12,89 @@ import android.graphics.Rect;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 
-/** Shared carbon-and-color background used across every Red Player screen. */
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+/** Warm daylight or burgundy-night background shared by every Red Player screen. */
 public final class IconicPatternDrawable extends Drawable {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
+    private final ThemePalette colors;
+    private final float density;
+    private int drawableAlpha = 255;
 
-    @Override public void draw(Canvas canvas) {
-        Rect b = getBounds();
-        float w = b.width();
-        float h = b.height();
+    public IconicPatternDrawable(Context context) {
+        colors = ThemePalette.from(context);
+        density = context.getResources().getDisplayMetrics().density;
+    }
 
-        paint.setShader(new LinearGradient(0, 0, w, h,
-                new int[]{Color.rgb(3,3,4), Color.rgb(17,9,12), Color.rgb(5,3,9), Color.BLACK},
-                new float[]{0f,.34f,.68f,1f}, Shader.TileMode.CLAMP));
-        canvas.drawRect(b, paint);
+    @Override public void draw(@NonNull Canvas canvas) {
+        Rect bounds = getBounds();
+        float width = bounds.width();
+        float height = bounds.height();
+        int farCorner = colors.night ? colors.strongSurface : colors.surface;
+
+        paint.setStyle(Paint.Style.FILL);
+        paint.setShader(new LinearGradient(0, 0, width, height,
+                new int[]{colors.background, colors.raisedSurface, colors.surface, farCorner},
+                new float[]{0f, .34f, .72f, 1f}, Shader.TileMode.CLAMP));
+        paint.setAlpha(drawableAlpha);
+        canvas.drawRect(bounds, paint);
         paint.setShader(null);
 
-        // Quiet carbon weave: visible enough to feel designed, dark enough for white type.
-        paint.setStrokeWidth(dp(1.2f));
-        for (float x = -h; x < w; x += dp(24)) {
-            paint.setColor(Color.argb(35, 255, 255, 255));
-            canvas.drawLine(x, 0, x + h, h, paint);
-            paint.setColor(Color.argb(24, 214, 10, 0));
-            canvas.drawLine(x + dp(8), 0, x + h + dp(8), h, paint);
-        }
-
-        // Large automotive-emblem sweeps.
+        // Soft diagonal bands add depth without competing with media or text.
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeWidth(dp(3));
-        paint.setColor(Color.argb(100, 214, 10, 0));
-        canvas.drawArc(-w*.28f, h*.04f, w*.78f, h*.47f, -55, 225, false, paint);
-        paint.setStrokeWidth(dp(1));
-        paint.setColor(Color.argb(120, 255, 188, 54));
-        canvas.drawArc(-w*.24f, h*.06f, w*.74f, h*.45f, -55, 225, false, paint);
-        paint.setStrokeWidth(dp(4));
-        paint.setColor(Color.argb(72, 171, 45, 255));
-        canvas.drawArc(w*.48f, h*.48f, w*1.34f, h*.82f, 120, 205, false, paint);
-        paint.setStrokeWidth(dp(1));
-        paint.setColor(Color.argb(105, 232, 232, 238));
-        canvas.drawArc(w*.51f, h*.49f, w*1.31f, h*.80f, 120, 205, false, paint);
+        paint.setStrokeWidth(dp(colors.night ? 18f : 24f));
+        paint.setColor(alpha(colors.red, colors.night ? 24 : 18));
+        canvas.drawLine(-width * .15f, height * .31f, width * 1.12f, height * .08f, paint);
+        paint.setStrokeWidth(dp(colors.night ? 12f : 17f));
+        paint.setColor(alpha(colors.orange, colors.night ? 20 : 24));
+        canvas.drawLine(-width * .10f, height * .75f, width * 1.14f, height * .49f, paint);
+        paint.setStrokeWidth(dp(8f));
+        paint.setColor(alpha(colors.purple, colors.night ? 15 : 13));
+        canvas.drawLine(width * .18f, height, width * 1.05f, height * .68f, paint);
 
-        // Small chrome badge diamonds repeat down the page.
-        paint.setStyle(Paint.Style.FILL);
-        for (int row = 0; row < 9; row++) {
-            float cy = h * (.10f + row * .105f);
-            float cx = (row % 2 == 0) ? w*.88f : w*.12f;
-            drawDiamond(canvas, cx, cy, dp(6), row % 3);
+        // Sparse clay-color diamonds echo the new freestanding icon family.
+        int[] accents = {colors.red, colors.orange, colors.yellow, colors.lime, colors.purple};
+        for (int row = 0; row < 8; row++) {
+            float y = height * (.10f + row * .12f);
+            float x = row % 2 == 0 ? width * .91f : width * .09f;
+            drawDiamond(canvas, x, y, dp(row % 3 == 0 ? 5.5f : 3.8f), accents[row % accents.length]);
         }
     }
 
-    private void drawDiamond(Canvas canvas, float cx, float cy, float size, int colorIndex) {
+    private void drawDiamond(Canvas canvas, float x, float y, float size, int color) {
         path.reset();
-        path.moveTo(cx, cy-size); path.lineTo(cx+size, cy);
-        path.lineTo(cx, cy+size); path.lineTo(cx-size, cy); path.close();
-        int[] colors = {Color.rgb(214,10,0), Color.rgb(255,188,54), Color.rgb(171,45,255)};
-        paint.setColor(Color.argb(125, Color.red(colors[colorIndex]), Color.green(colors[colorIndex]), Color.blue(colors[colorIndex])));
+        path.moveTo(x, y - size);
+        path.lineTo(x + size, y);
+        path.lineTo(x, y + size);
+        path.lineTo(x - size, y);
+        path.close();
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(alpha(color, colors.night ? 76 : 66));
         canvas.drawPath(path, paint);
         paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(dp(1)); paint.setColor(Color.argb(150, 240,240,245));
+        paint.setStrokeWidth(dp(1f));
+        paint.setColor(alpha(colors.highlight, colors.night ? 100 : 145));
         canvas.drawPath(path, paint);
-        paint.setStyle(Paint.Style.FILL);
     }
 
-    private float dp(float value) { return value * getCallbackDensity(); }
-    private float getCallbackDensity() {
-        return android.content.res.Resources.getSystem().getDisplayMetrics().density;
+    private int alpha(int color, int alpha) {
+        return Color.argb(alpha * drawableAlpha / 255, Color.red(color), Color.green(color), Color.blue(color));
     }
-    @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); invalidateSelf(); }
-    @Override public void setColorFilter(ColorFilter filter) { paint.setColorFilter(filter); invalidateSelf(); }
+
+    private float dp(float value) { return value * density; }
+
+    @Override public void setAlpha(int alpha) {
+        drawableAlpha = Math.max(0, Math.min(255, alpha));
+        invalidateSelf();
+    }
+
+    @Override public void setColorFilter(@Nullable ColorFilter filter) {
+        paint.setColorFilter(filter);
+        invalidateSelf();
+    }
+
     @Override public int getOpacity() { return PixelFormat.OPAQUE; }
 }

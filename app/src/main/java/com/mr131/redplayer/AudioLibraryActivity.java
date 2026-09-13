@@ -56,10 +56,10 @@ public final class AudioLibraryActivity extends AppCompatActivity {
         root.setPadding(dp(14), dp(10), dp(14), dp(10));
         RedPlayerBackground.apply(root);
         root.addView(LuxuryIconView.create(this, R.drawable.icon_playlist_thick, "Music Library emblem"));
-        TextView title = text("MUSIC LIBRARY", 25, Color.WHITE);
+        TextView title = text("MUSIC LIBRARY", 25, getColor(R.color.text_primary));
         title.setContentDescription("Music Library Screen");
         root.addView(title);
-        count = text("Scanning music…", 13, Color.LTGRAY);
+        count = text("Scanning music…", 13, getColor(R.color.text_secondary));
         root.addView(count);
 
         LinearLayout tabs = new LinearLayout(this);
@@ -233,7 +233,7 @@ public final class AudioLibraryActivity extends AppCompatActivity {
                 try { art.setImageURI(row.track.artwork); } catch (RuntimeException ignored) { }
             }
             line.addView(art, new LinearLayout.LayoutParams(dp(58), dp(58)));
-            TextView label = text(row == null ? "" : row.label(), 15, Color.WHITE);
+            TextView label = text(row == null ? "" : row.label(), 15, getColor(R.color.text_primary));
             label.setGravity(Gravity.CENTER_VERTICAL);
             label.setPadding(dp(12), 0, 0, 0);
             line.addView(label, new LinearLayout.LayoutParams(0, dp(70), 1));

@@ -19,9 +19,17 @@ timeout 10s adb shell input keyevent 82 || true
 timeout 10s adb shell settings put global window_animation_scale 0
 timeout 10s adb shell settings put global transition_animation_scale 0
 timeout 10s adb shell settings put global animator_duration_scale 0
+# Match the Galaxy S24 Ultra's 1440x3120 display and a phone-scale 560 dpi.
+# The validator below checks the actual PNG dimensions, so a failed viewport
+# override cannot silently produce lower-resolution proof.
+timeout 15s adb shell wm size 1440x3120 || exit 4
+timeout 15s adb shell wm density 560 || exit 4
+timeout 15s adb shell wm size > proof/device-state/display.txt
+timeout 15s adb shell wm density > proof/device-state/density.txt
+grep -q 'Override size: 1440x3120' proof/device-state/display.txt || exit 4
+grep -q 'Override density: 560' proof/device-state/density.txt || exit 4
 timeout 10s adb logcat -c
 timeout 15s adb shell getprop > proof/device-state/properties.txt
-timeout 15s adb shell wm size > proof/device-state/display.txt
 timeout 15s adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.mr131.redplayer \
   > proof/device-state/launcher-activity.txt
 
@@ -137,7 +145,7 @@ test "$launcher_drawn" -eq 1 || exit 18
 
 # ScreenTourTest asserts the unique “131 Red Player Home Ready” marker in the
 # real launched activity before it is allowed to capture screenshot 01.
-timeout 15m adb shell am instrument -w -r \
+timeout 25m adb shell am instrument -w -r \
   com.mr131.redplayer.test/androidx.test.runner.AndroidJUnitRunner | tee proof/instrumentation.txt
 test_status=${PIPESTATUS[0]}
 if ! grep -q 'OK (2 tests)' proof/instrumentation.txt; then test_status=1; fi
@@ -172,8 +180,8 @@ python tools/validate_screenshots.py proof/screenshots --required \
   17-vault-pin.png 18-subtitle-choices.png 19-vlc-codec-player.png \
   20-network-address.png 21-backup-restore.png 22-advanced-playback.png 23-video-trash.png 24-music-library.png 25-playback-lab.png 26-video-bookmarks.png 27-video-transform.png \
   28-repeat-mode.png 29-screen-orientation.png 30-seek-step.png 31-custom-sleep-timer.png \
-  32-about-privacy.png \
-  --reject-unexpected
+  32-about-privacy.png 33-home-light.png 34-home-night.png \
+  --reject-unexpected --expect-size 1440x3120
 validation_status=$?
 
 python tools/validate_android_log.py proof/logcat.txt com.mr131.redplayer
