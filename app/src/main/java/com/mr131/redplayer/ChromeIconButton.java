@@ -12,7 +12,7 @@ import android.view.animation.DecelerateInterpolator;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageButton;
 
-/** A borderless, freestanding icon with an extra-thick warm clay extrusion. */
+/** A borderless, freestanding icon that preserves each asset's built-in 3D depth. */
 public final class ChromeIconButton extends AppCompatImageButton {
     private float pulse;
     private boolean active;
@@ -44,38 +44,13 @@ public final class ChromeIconButton extends AppCompatImageButton {
     private boolean isEmulator(){String model=android.os.Build.MODEL.toLowerCase();String hardware=android.os.Build.HARDWARE.toLowerCase();String product=android.os.Build.PRODUCT.toLowerCase();return model.contains("sdk")||model.contains("emulator")||hardware.contains("ranchu")||hardware.contains("goldfish")||product.contains("sdk")||product.contains("emulator");}
 
     @Override protected void onDraw(Canvas canvas) {
-        Drawable icon=getDrawable();
-        if(icon==null){super.onDraw(canvas);return;}
-        if("raw_asset".equals(String.valueOf(getTag()))) {
-            Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
-            int side=colors.claySide(colors.accentFor(getContentDescription()));
-            for(int layer=9;layer>=1;layer--){
-                icon.setColorFilter(side,PorterDuff.Mode.SRC_IN);
-                canvas.save();canvas.translate(dp(layer*.52f),dp(layer*.52f));icon.draw(canvas);canvas.restore();
-            }
-            icon.setColorFilter(null);icon.setCallback(callback);
-            super.onDraw(canvas);
-            float colorPulse=Math.max(pulse,active?.24f:0f);
-            if(colorPulse>0f){
-                callback=icon.getCallback();icon.setCallback(null);
-                icon.setColorFilter(colors.withAlpha(colors.orange,(int)(145*colorPulse)),PorterDuff.Mode.SRC_ATOP);
-                icon.draw(canvas);icon.setColorFilter(null);icon.setCallback(callback);
-            }
-            return;
-        }
+        super.onDraw(canvas);
+        Drawable icon=getDrawable();float colorPulse=Math.max(pulse,active?.18f:0f);
+        if(icon==null||colorPulse<=0f)return;
         Drawable.Callback callback=icon.getCallback();icon.setCallback(null);
-        int face=colors.accentFor(getContentDescription());
-        int side=colors.claySide(face);
-        for(int layer=10;layer>=1;layer--){icon.setColorFilter(side,PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(dp(layer*.5f),dp(layer*.5f));icon.draw(canvas);canvas.restore();}
-        icon.setColorFilter(colors.shadow,PorterDuff.Mode.SRC_IN);
-        canvas.save();canvas.translate(-dp(.75f),-dp(.45f));icon.draw(canvas);canvas.restore();
-        int liveFace=androidx.core.graphics.ColorUtils.blendARGB(face,colors.orange,Math.max(pulse,active?.18f:0f));
-        icon.setColorFilter(liveFace,PorterDuff.Mode.SRC_IN);icon.draw(canvas);
-        icon.setColorFilter(colors.withAlpha(colors.highlight,145),PorterDuff.Mode.SRC_IN);canvas.save();canvas.translate(-dp(.38f),-dp(.38f));icon.draw(canvas);canvas.restore();
-        icon.setColorFilter(null);icon.setCallback(callback);
+        icon.setColorFilter(colors.withAlpha(colors.orange,(int)(90*colorPulse)),PorterDuff.Mode.SRC_ATOP);
+        icon.draw(canvas);icon.setColorFilter(null);icon.setCallback(callback);
     }
-
-    private float dp(float value){return value*getResources().getDisplayMetrics().density;}
 
     @Override protected void onDetachedFromWindow(){if(animator!=null)animator.cancel();super.onDetachedFromWindow();}
 }
