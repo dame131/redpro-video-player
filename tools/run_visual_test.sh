@@ -180,7 +180,7 @@ python tools/validate_screenshots.py proof/screenshots --required \
   17-vault-pin.png 18-subtitle-choices.png 19-vlc-codec-player.png \
   20-network-address.png 21-backup-restore.png 22-advanced-playback.png 23-video-trash.png 24-music-library.png 25-playback-lab.png 26-video-bookmarks.png 27-video-transform.png \
   28-repeat-mode.png 29-screen-orientation.png 30-seek-step.png 31-custom-sleep-timer.png \
-  32-about-privacy.png 33-home-light.png 34-home-night.png \
+  32-about-privacy.png 33-home-light.png 34-home-night.png 35-image-viewer.png \
   --reject-unexpected --expect-size 1440x3120
 validation_status=$?
 

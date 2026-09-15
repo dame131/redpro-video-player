@@ -85,6 +85,7 @@ import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private PlayerView playerView;
+    private ImageView imageViewer;
     private Player player;
     private ExoPlayer localPlayer;
     private CastPlayer castPlayer;
@@ -117,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
     private float videoTranslationX = 0f, videoTranslationY = 0f;
     private boolean mirrorHorizontal=false, mirrorVertical=false;
     private int videoRotation=0;
+    private boolean showingImage=false;
     private ScaleGestureDetector scaleDetector;
     private boolean fourKMode = true;
     private LocalCastServer localCastServer;
@@ -127,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean temporaryFastPlayback = false;
     private float speedBeforeHold = 1f;
     private String lastPerVideoDecoderLaunchUri = "";
-    private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
+    private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.transformButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(), this::addVideos);
@@ -169,6 +171,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.root).setContentDescription("131 Red Player Home Ready");
         prefs = getSharedPreferences("red_player", MODE_PRIVATE);
         playerView = findViewById(R.id.playerView);
+        imageViewer = findViewById(R.id.imageViewer);
         titleText = findViewById(R.id.titleText);
         bottomBar = findViewById(R.id.bottomBar);
         gestureOverlay = findViewById(R.id.gestureOverlay);
@@ -210,6 +213,7 @@ public class MainActivity extends AppCompatActivity {
         bindAnimated(R.id.subtitleButton,v -> {if(current<0)toast("Open a video first");else showSubtitleChoices();});
         bindAnimated(R.id.speedButton,this::showSpeed);
         bindAnimated(R.id.fitButton,v -> changeFit());
+        bindAnimated(R.id.transformButton,v -> showVideoTransform());
         bindAnimated(R.id.abButton,this::setAB);
         bindAnimated(R.id.pipButton,v -> enterPip());
         bindAnimated(R.id.lockButton,v -> toggleLock());
@@ -245,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startIconEntrance() {
-        int[] ids={R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
+        int[] ids={R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.transformButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
         String fingerprint=android.os.Build.FINGERPRINT.toLowerCase();
         if(fingerprint.contains("generic")||fingerprint.contains("emulator")){
             for(int id:ids){View icon=findViewById(id);icon.setAlpha(1f);icon.setScaleX(1f);icon.setScaleY(1f);icon.setTranslationY(0f);}
@@ -352,7 +356,25 @@ public class MainActivity extends AppCompatActivity {
         toast(result.size() + " video" + (result.size() == 1 ? "" : "s") + " added");
     }
 
-    private void addPickedMedia(Intent data){Uri uri=data.getData();if(uri==null)return;MediaMetadata.Builder info=new MediaMetadata.Builder();String title=data.getStringExtra("title"),artist=data.getStringExtra("artist"),album=data.getStringExtra("album"),art=data.getStringExtra("artwork");if(title!=null&&!title.isEmpty())info.setTitle(title);if(artist!=null&&!artist.isEmpty())info.setArtist(artist);if(album!=null&&!album.isEmpty())info.setAlbumTitle(album);if(art!=null&&!art.isEmpty())info.setArtworkUri(Uri.parse(art));metadataByUri.put(uri.toString(),info.build());addVideos(Collections.singletonList(uri));}
+    private void addPickedMedia(Intent data){
+        Uri uri=data.getData();if(uri==null)return;
+        if(isImage(uri)){showImage(uri);return;}
+        MediaMetadata.Builder info=new MediaMetadata.Builder();String title=data.getStringExtra("title"),artist=data.getStringExtra("artist"),album=data.getStringExtra("album"),art=data.getStringExtra("artwork");if(title!=null&&!title.isEmpty())info.setTitle(title);if(artist!=null&&!artist.isEmpty())info.setArtist(artist);if(album!=null&&!album.isEmpty())info.setAlbumTitle(album);if(art!=null&&!art.isEmpty())info.setArtworkUri(Uri.parse(art));metadataByUri.put(uri.toString(),info.build());addVideos(Collections.singletonList(uri));
+    }
+
+    private boolean isImage(Uri uri){
+        String type=null;try{type=getContentResolver().getType(uri);}catch(Exception ignored){}
+        if(type!=null&&type.startsWith("image/"))return true;
+        String value=uri.toString().toLowerCase(Locale.US);
+        return value.endsWith(".jpg")||value.endsWith(".jpeg")||value.endsWith(".png")||value.endsWith(".webp")||value.endsWith(".gif")||value.endsWith(".bmp")||value.endsWith(".heic")||value.endsWith(".heif");
+    }
+
+    private void showImage(Uri uri){
+        try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){}
+        if(player!=null)player.pause();
+        showingImage=true;mirrorHorizontal=false;mirrorVertical=false;videoRotation=0;videoScale=1f;videoTranslationX=videoTranslationY=0f;
+        playerView.setVisibility(View.INVISIBLE);imageViewer.setVisibility(View.VISIBLE);imageViewer.setImageURI(uri);titleText.setText(displayName(uri));applyFitMode();applyVideoTransform(false);toast("Image opened • use Flip / Rotate");
+    }
 
     private void loadPlayerQueue(){if(player==null)return;for(int i=0;i<player.getMediaItemCount();i++){MediaItem item=player.getMediaItemAt(i);if(item.localConfiguration==null||item.localConfiguration.uri==null)continue;Uri uri=item.localConfiguration.uri;if(videos.contains(uri))continue;videos.add(uri);CharSequence title=item.mediaMetadata.title;names.add(title==null||title.length()==0?displayName(uri):title.toString());metadataByUri.put(uri.toString(),item.mediaMetadata);}if(!videos.isEmpty()){current=Math.max(0,Math.min(player.getCurrentMediaItemIndex(),videos.size()-1));titleText.setText(names.get(current));applyRememberedPlaybackSettings(current);}}
 
@@ -382,6 +404,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startSelectedVideo(int index,long position,boolean play) {
         current=index;
+        showingImage=false;imageViewer.setVisibility(View.GONE);imageViewer.setImageDrawable(null);playerView.setVisibility(View.VISIBLE);
         applyRememberedPlaybackSettings(index);
         player.seekTo(index,Math.max(0,position));
         player.prepare();
@@ -444,10 +467,11 @@ public class MainActivity extends AppCompatActivity {
         int[] modes = {AspectRatioFrameLayout.RESIZE_MODE_FIT, AspectRatioFrameLayout.RESIZE_MODE_ZOOM, AspectRatioFrameLayout.RESIZE_MODE_FILL};
         String[] labels = {"Fit inside", "Fill screen", "Stretch"};
         fitMode = (fitMode + 1) % modes.length;
-        playerView.setResizeMode(modes[fitMode]);if(current>=0)prefs.edit().putInt(videoKey("fit"),fitMode).apply();
+        playerView.setResizeMode(modes[fitMode]);applyImageFitMode();if(current>=0&&!showingImage)prefs.edit().putInt(videoKey("fit"),fitMode).apply();
         toast(labels[fitMode]);
     }
-    private void applyFitMode(){int[] modes={AspectRatioFrameLayout.RESIZE_MODE_FIT,AspectRatioFrameLayout.RESIZE_MODE_ZOOM,AspectRatioFrameLayout.RESIZE_MODE_FILL};playerView.setResizeMode(modes[Math.max(0,Math.min(2,fitMode))]);}
+    private void applyFitMode(){int[] modes={AspectRatioFrameLayout.RESIZE_MODE_FIT,AspectRatioFrameLayout.RESIZE_MODE_ZOOM,AspectRatioFrameLayout.RESIZE_MODE_FILL};playerView.setResizeMode(modes[Math.max(0,Math.min(2,fitMode))]);applyImageFitMode();}
+    private void applyImageFitMode(){if(imageViewer==null)return;ImageView.ScaleType[] modes={ImageView.ScaleType.FIT_CENTER,ImageView.ScaleType.CENTER_CROP,ImageView.ScaleType.FIT_XY};imageViewer.setScaleType(modes[Math.max(0,Math.min(2,fitMode))]);}
 
     private void setAB(View view) {
         if (current < 0) { toast("Open a video first"); return; }
@@ -576,12 +600,13 @@ public class MainActivity extends AppCompatActivity {
     private void importPlaylistFile(Uri uri){if(uri==null)return;new Thread(()->{int added=0;try(BufferedReader reader=new BufferedReader(new InputStreamReader(getContentResolver().openInputStream(uri),StandardCharsets.UTF_8))){String line;while((line=reader.readLine())!=null){line=line.trim();if(line.isEmpty()||line.startsWith("#"))continue;Uri media=Uri.parse(line);String scheme=media.getScheme();if(scheme==null){try{media=Uri.withAppendedPath(uri.buildUpon().path(uri.getPath()==null?"":uri.getPath().substring(0,Math.max(0,uri.getPath().lastIndexOf('/')+1))).build(),line);}catch(Exception ignored){continue;}}final Uri item=media;runOnUiThread(()->addVideos(Collections.singletonList(item)));added++;}}catch(Exception e){runOnUiThread(()->toast("Playlist could not be read"));return;}int count=added;runOnUiThread(()->{toast(count+" playlist items imported");if(count>0)playIndex(Math.max(0,videos.size()-count),false);});},"playlist-import").start();}
 
     private void showAdvancedPlayback(){
-        String[] items={"Quick mute","Frame backward","Frame forward","Jump to time","Choose seek step","Repeat mode","Screen orientation","Reset pinch zoom","Mirror, flip & rotate video","Video enhancement filters","Subtitle appearance","Preferred audio & subtitle language","Equalizer presets"};
+        String[] items={"Quick mute","Frame backward","Frame forward","Jump to time","Choose seek step","Repeat mode","Screen orientation","Reset pinch zoom","Flip & rotate video or image","Video enhancement filters","Subtitle appearance","Preferred audio & subtitle language","Equalizer presets"};
         new AlertDialog.Builder(this).setTitle("Advanced playback").setItems(items,(d,w)->{if(w==0)toggleMute();if(w==1)stepFrame(-1);if(w==2)stepFrame(1);if(w==3)showJumpToTime();if(w==4)showSeekStep();if(w==5)showRepeatMode();if(w==6)showOrientationMode();if(w==7)resetZoom();if(w==8)showVideoTransform();if(w==9)showVideoFilters();if(w==10)showSubtitleAppearance();if(w==11)showPreferredLanguages();if(w==12)showEqualizerPresets();}).setNegativeButton("Close",null).show();
     }
     private void saveVideoBookmark(){if(player==null||current<0){toast("Open a video first");return;}EditText input=new EditText(this);input.setHint("Bookmark name");input.setText("Bookmark "+formatTime(player.getCurrentPosition()));input.setTextColor(getColor(R.color.text_primary));new AlertDialog.Builder(this).setTitle("Save video bookmark").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{try{JSONArray old=new JSONArray(prefs.getString("video_bookmarks","[]"));JSONArray next=new JSONArray();JSONObject item=new JSONObject().put("label",input.getText().toString().trim()).put("name",names.get(current)).put("uri",videos.get(current).toString()).put("position",player.getCurrentPosition()).put("created",System.currentTimeMillis());next.put(item);for(int i=0;i<old.length()&&next.length()<100;i++)next.put(old.get(i));prefs.edit().putString("video_bookmarks",next.toString()).apply();toast("Video bookmark saved");}catch(Exception e){toast("Bookmark could not be saved");}}).show();}
-    private void showVideoTransform(){String[] labels={"Mirror left/right","Flip top/bottom","Rotate 90°","Reset video transform"};new AlertDialog.Builder(this).setTitle("Mirror, flip & rotate video").setItems(labels,(d,w)->{if(w==0)mirrorHorizontal=!mirrorHorizontal;if(w==1)mirrorVertical=!mirrorVertical;if(w==2)videoRotation=(videoRotation+90)%360;if(w==3){mirrorHorizontal=false;mirrorVertical=false;videoRotation=0;}applyVideoTransform();}).setNegativeButton("Close",null).show();}
-    private void applyVideoTransform(){View surface=playerView.getVideoSurfaceView();if(surface==null)return;surface.setRotation(videoRotation);surface.setScaleX(mirrorHorizontal?-videoScale:videoScale);surface.setScaleY(mirrorVertical?-videoScale:videoScale);surface.setTranslationX(videoTranslationX);surface.setTranslationY(videoTranslationY);toast("Video transform applied");}
+    private void showVideoTransform(){String[] labels={"Flip left/right","Flip top/bottom","Rotate 90°","Reset flip and rotation"};new AlertDialog.Builder(this).setTitle("Flip & rotate video or image").setItems(labels,(d,w)->{if(w==0)mirrorHorizontal=!mirrorHorizontal;if(w==1)mirrorVertical=!mirrorVertical;if(w==2)videoRotation=(videoRotation+90)%360;if(w==3){mirrorHorizontal=false;mirrorVertical=false;videoRotation=0;videoScale=1f;videoTranslationX=videoTranslationY=0f;}applyVideoTransform(true);}).setNegativeButton("Close",null).show();}
+    private void applyVideoTransform(){applyVideoTransform(true);}
+    private void applyVideoTransform(boolean notify){View target=showingImage?imageViewer:playerView.getVideoSurfaceView();if(target==null)return;target.setRotation(videoRotation);target.setScaleX(mirrorHorizontal?-videoScale:videoScale);target.setScaleY(mirrorVertical?-videoScale:videoScale);target.setTranslationX(videoTranslationX);target.setTranslationY(videoTranslationY);if(notify)toast(showingImage?"Image transform applied":"Video transform applied");}
     private void toggleMute(){AudioManager a=(AudioManager)getSystemService(AUDIO_SERVICE);muted=!muted;a.adjustStreamVolume(AudioManager.STREAM_MUSIC,muted?AudioManager.ADJUST_MUTE:AudioManager.ADJUST_UNMUTE,0);toast(muted?"Quick mute on":"Sound restored");}
     private void stepFrame(int direction){if(player==null||current<0){toast("Open a video first");return;}player.pause();long step=33;androidx.media3.common.Format f=localPlayer.getVideoFormat();if(f!=null&&f.frameRate>0)step=Math.max(1,Math.round(1000f/f.frameRate));player.seekTo(Math.max(0,Math.min(player.getDuration(),player.getCurrentPosition()+direction*step)));showGesture(direction<0?"Previous frame":"Next frame");}
     private void showJumpToTime(){if(player==null||current<0){toast("Open a video first");return;}EditText input=new EditText(this);input.setHint("HH:MM:SS or seconds");input.setSingleLine(true);input.setTextColor(getColor(R.color.text_primary));input.setHintTextColor(getColor(R.color.text_secondary));new AlertDialog.Builder(this).setTitle("Jump to time").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Jump",(d,w)->{try{String[] p=input.getText().toString().trim().split(":");long seconds=0;for(String part:p)seconds=seconds*60+Long.parseLong(part);player.seekTo(Math.max(0,Math.min(player.getDuration(),seconds*1000)));}catch(Exception e){toast("Enter a valid time");}}).show();}
@@ -699,16 +724,11 @@ public class MainActivity extends AppCompatActivity {
         if(fourKMode) parameters.setMaxVideoSize(7680,4320).setForceHighestSupportedBitrate(true);
         else parameters.setMaxVideoSize(1920,1080).setForceHighestSupportedBitrate(false);
         localPlayer.setTrackSelectionParameters(parameters.build());
-        updateFourKBadge();
+        // 4K playback remains available in Settings, but no badge covers the media.
     }
 
     private void updateFourKBadge() {
-        TextView badge=findViewById(R.id.fourKBadge);if(badge==null)return;
-        androidx.media3.common.Format format=localPlayer==null?null:localPlayer.getVideoFormat();
-        boolean ultra=format!=null&&(format.width>=3840||format.height>=2160);
-        badge.setText(ultra?"4K UHD":fourKMode?"4K READY":"HD");
-        badge.setContentDescription(ultra?"4K Ultra HD video active":fourKMode?"4K Ultra HD mode ready":"HD playback mode");
-        badge.setVisibility(View.VISIBLE);
+        // Intentionally empty: the media screen must stay clean and badge-free.
     }
 
     private void applyKeepAwake(boolean on) {
@@ -756,7 +776,7 @@ public class MainActivity extends AppCompatActivity {
     private String videoKey(String setting,int index){return setting+":"+(index>=0&&index<videos.size()?videos.get(index):"none");}
     private void savePosition(){if(current>=0&&current<videos.size()){long position=player.getCurrentPosition();prefs.edit().putLong("pos:"+videos.get(current),position).apply();try{JSONArray source=new JSONArray(prefs.getString("history","[]"));JSONArray next=new JSONArray();JSONObject item=new JSONObject().put("uri",videos.get(current).toString()).put("name",names.get(current)).put("position",position).put("watched",System.currentTimeMillis());next.put(item);for(int i=0;i<source.length()&&next.length()<50;i++){JSONObject old=source.optJSONObject(i);if(old!=null&&!old.optString("uri").equals(videos.get(current).toString()))next.put(old);}prefs.edit().putString("history",next.toString()).apply();}catch(Exception ignored){}}}
     private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_SHORT).show();}
-    private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null)addVideos(Collections.singletonList(intent.getData()));}
+    private void handleIncomingVideo(Intent intent){if(intent!=null&&Intent.ACTION_VIEW.equals(intent.getAction())&&intent.getData()!=null){Uri uri=intent.getData();if(isImage(uri))showImage(uri);else addVideos(Collections.singletonList(uri));}}
 
     @Override public void onPictureInPictureModeChanged(boolean inPip,@NonNull Configuration config){super.onPictureInPictureModeChanged(inPip,config);bottomBar.setVisibility(inPip?View.GONE:View.VISIBLE);playerControls.setVisibility(inPip?View.GONE:View.VISIBLE);}
     @Override protected void onStop(){releaseTemporaryFastPlayback(false);super.onStop();if(!isInPictureInPictureMode())savePosition();}

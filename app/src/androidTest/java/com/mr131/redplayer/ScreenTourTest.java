@@ -10,7 +10,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.net.Uri;
+import android.view.View;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.core.app.ActivityScenario;
@@ -91,7 +95,7 @@ public final class ScreenTourTest {
         device.pressBack();
         clickResource("openButton");
         capture("09-video-library", By.desc("Video Library"), true);
-        click(By.text("BROWSE FILES"), "Browse files");
+        click(By.text("BROWSE MEDIA"), "Browse media");
         capture("10-system-video-picker", By.pkg("com.android.documentsui"), false);
         device.pressBack(); device.pressBack();
         startScreen(SubtitleDownloadActivity.class);
@@ -115,13 +119,14 @@ public final class ScreenTourTest {
         startScreen(TrashActivity.class);capture("23-video-trash",By.desc("Video Trash Screen"),true);startScreen(BookmarkActivity.class);capture("26-video-bookmarks",By.desc("Video Bookmarks Screen"),true);startScreen(PlaybackLabActivity.class);capture("25-playback-lab",By.desc("Playback Lab Screen"),true);
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
-        restartHome("home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Mirror, flip & rotate video"),"video transform");capture("27-video-transform",By.text("Reset video transform"),true);
+        restartHome("home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);device.pressBack();clickResource("transformButton");capture("27-video-transform",By.text("Reset flip and rotation"),true);
         restartHome("home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
         restartHome("home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
         restartHome("home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
         restartHome("home custom sleep");clickResource("moreButton");click(By.text("Sleep timer"),"sleep timer");click(By.text("Custom minutes"),"custom sleep timer");capture("31-custom-sleep-timer",By.text("Custom sleep timer"),true);
         startScreen(AboutActivity.class);
         capture("32-about-privacy", By.desc("About and Privacy Screen"), true);
+        captureImageViewer();
         captureThemedHome("33-home-light", AppCompatDelegate.MODE_NIGHT_NO);
         captureThemedHome("34-home-night", AppCompatDelegate.MODE_NIGHT_YES);
     }
@@ -191,6 +196,8 @@ public final class ScreenTourTest {
         waitFor(By.desc("Rewind 10 seconds"), "custom rewind control");
         waitFor(By.desc("Play"), "custom play control");
         waitFor(By.desc("Forward 10 seconds"), "custom forward control");
+        waitFor(By.text("Ratio"), "visible ratio label");
+        waitFor(By.text("Flip / Rotate"), "visible flip and rotate label");
         settle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
     }
@@ -225,9 +232,35 @@ public final class ScreenTourTest {
         assertTrue("Screenshot failed: " + name, takeScreenshot(new File(output, name + ".png")));
     }
 
+    private void captureImageViewer() {
+        device.pressBack();
+        if (homeScenario != null) homeScenario.close();
+        Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        homeScenario=ActivityScenario.launch(new Intent(Intent.ACTION_VIEW,installDemoImage(target),target,MainActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+        waitFor(By.desc("131 Red Player Home Ready"),"image home");
+        waitFor(By.text("demo-image.png"),"image title");
+        waitFor(By.desc("Image viewer"),"image viewer");
+        clickResource("transformButton");
+        click(By.text("Rotate 90°"),"rotate image");
+        homeScenario.onActivity(activity -> {
+            View image=activity.findViewById(R.id.imageViewer);
+            assertTrue("Image viewer is not visible",image.isShown());
+            assertEquals("Image did not rotate",90f,image.getRotation(),0.1f);
+        });
+        capture("35-image-viewer",By.desc("Image viewer"),true);
+    }
+
     private Uri installDemoVideo(Context target) {
         File folder=new File(target.getCacheDir(),"proof-media");assertTrue(folder.isDirectory()||folder.mkdirs());File demo=new File(folder,"demo.mp4");
         try(InputStream in=InstrumentationRegistry.getInstrumentation().getContext().getAssets().open("demo.mp4");FileOutputStream out=new FileOutputStream(demo)){byte[] buffer=new byte[16384];int read;while((read=in.read(buffer))>0)out.write(buffer,0,read);}catch(IOException error){throw new AssertionError("Could not install demo video",error);}
+        return FileProvider.getUriForFile(target,target.getPackageName()+".files",demo);
+    }
+
+    private Uri installDemoImage(Context target) {
+        File folder=new File(target.getCacheDir(),"proof-media");assertTrue(folder.isDirectory()||folder.mkdirs());File demo=new File(folder,"demo-image.png");
+        Bitmap bitmap=Bitmap.createBitmap(640,360,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);canvas.drawColor(Color.rgb(255,241,184));paint.setColor(Color.rgb(217,45,32));canvas.drawRect(60,55,580,305,paint);paint.setColor(Color.rgb(243,196,49));canvas.drawCircle(210,180,86,paint);paint.setColor(Color.rgb(141,189,53));canvas.drawRect(330,105,530,255,paint);paint.setColor(Color.rgb(43,23,21));paint.setTextAlign(Paint.Align.CENTER);paint.setTextSize(42);paint.setFakeBoldText(true);canvas.drawText("131 IMAGE TEST",320,195,paint);
+        try(FileOutputStream out=new FileOutputStream(demo)){assertTrue("Could not create demo image",bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}catch(IOException error){throw new AssertionError("Could not install demo image",error);}finally{bitmap.recycle();}
         return FileProvider.getUriForFile(target,target.getPackageName()+".files",demo);
     }
 
