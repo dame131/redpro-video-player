@@ -201,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
             else toast("Playback service could not start");
             return;
         }
-        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());if(videos.isEmpty())loadPlayerQueue();if(videos.isEmpty())loadSavedPlaylist();
+        player = localPlayer; playerView.setPlayer(player); restoreSettings(); wirePlayer(); playerView.post(() -> setupCast()); handleIncomingVideo(getIntent());if(videos.isEmpty()&&!showingImage)loadPlayerQueue();if(videos.isEmpty()&&!showingImage)loadSavedPlaylist();
     }
 
     private void wireButtons() {
