@@ -15,6 +15,7 @@
     <color name="text_primary">#FFF2D8</color>
     <color name="text_secondary">#D5AD98</color>
     <color name="text_on_accent">#24090D</color>
+    <color name="player_control_label">#FFF8E7</color>
     <color name="accent_orange">#FF7A2F</color>
     <color name="accent_yellow">#FFD447</color>
     <color name="accent_lime">#A8D84E</color>
