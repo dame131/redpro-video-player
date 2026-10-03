@@ -28,8 +28,6 @@ jobs:
           echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
           dirname "$(command -v sdkmanager)" >> "$GITHUB_PATH"
-      - name: Install Android SDK
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
