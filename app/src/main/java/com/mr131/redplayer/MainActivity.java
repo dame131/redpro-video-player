@@ -129,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean temporaryFastPlayback = false;
     private float speedBeforeHold = 1f;
     private String lastPerVideoDecoderLaunchUri = "";
-    private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.transformButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton};
+    private final int[] chromeIconIds={R.id.castButton,R.id.searchButton,R.id.moreButton,R.id.networkButton,R.id.cloudButton,R.id.decoderButton,R.id.subtitleButton,R.id.speedButton,R.id.fitButton,R.id.transformButton,R.id.abButton,R.id.pipButton,R.id.lockButton,R.id.infoButton,R.id.openButton,R.id.previousButton,R.id.playlistButton,R.id.nextButton,R.id.settingsButton,R.id.rewindButton,R.id.rewind5Button,R.id.rewind3Button,R.id.centerPlayButton,R.id.forward3Button,R.id.forward5Button,R.id.forwardButton,R.id.rotateButton,R.id.flipButton,R.id.equalizerButton,R.id.audioButton,R.id.screenshotButton};
 
     private final ActivityResultLauncher<String[]> videoPicker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(), this::addVideos);
@@ -181,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         seekPreview = findViewById(R.id.seekPreview);
         playerControls = findViewById(R.id.playerControls);
         wireButtons();
+        wireBottomSliders();
         startIconEntrance();
         wireGestures();
         // Let the first activity launch finish before asking Android to start the
@@ -224,13 +225,57 @@ public class MainActivity extends AppCompatActivity {
         bindAnimated(R.id.settingsButton,this::showSettings);
         bindAnimated(R.id.searchButton,v -> showSearch());
         bindAnimated(R.id.moreButton,this::showMore);
-        bindAnimated(R.id.rewindButton,v -> {if(player!=null)player.seekTo(Math.max(0,player.getCurrentPosition()-seekStepMs));});
+        bindAnimated(R.id.rewindButton,v -> seekBy(-10_000L));
+        bindAnimated(R.id.rewind5Button,v -> seekBy(-5_000L));
+        bindAnimated(R.id.rewind3Button,v -> seekBy(-3_000L));
         bindAnimated(R.id.centerPlayButton,v -> {if(player!=null){if(player.isPlaying())player.pause();else player.play();}});
-        bindAnimated(R.id.forwardButton,v -> {if(player!=null)player.seekTo(Math.min(Math.max(0,player.getDuration()),player.getCurrentPosition()+seekStepMs));});
+        bindAnimated(R.id.forward3Button,v -> seekBy(3_000L));
+        bindAnimated(R.id.forward5Button,v -> seekBy(5_000L));
+        bindAnimated(R.id.forwardButton,v -> seekBy(10_000L));
+        bindAnimated(R.id.rotateButton,v -> {videoRotation=(videoRotation+90)%360;applyVideoTransform(true);});
+        bindAnimated(R.id.flipButton,v -> {mirrorHorizontal=!mirrorHorizontal;applyVideoTransform(true);});
+        bindAnimated(R.id.equalizerButton,v -> showEqualizer());
+        bindAnimated(R.id.audioButton,v -> startActivity(new Intent(this,AudioLibraryActivity.class)));
+        bindAnimated(R.id.screenshotButton,v -> saveVideoScreenshot());
         playerSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
             @Override public void onProgressChanged(SeekBar bar,int value,boolean fromUser){if(fromUser&&player!=null&&player.getDuration()>0){long target=player.getDuration()*value/1000L;player.seekTo(target);loadSeekPreview(target);}}
             @Override public void onStartTrackingTouch(SeekBar bar){seekPreview.setVisibility(View.VISIBLE);}
             @Override public void onStopTrackingTouch(SeekBar bar){previewRequest++;seekPreview.setVisibility(View.GONE);}
+        });
+    }
+
+    private void seekBy(long amountMs) {
+        if(player==null)return;
+        long duration=Math.max(0,player.getDuration());
+        long target=Math.max(0,player.getCurrentPosition()+amountMs);
+        if(duration>0)target=Math.min(duration,target);
+        player.seekTo(target);
+    }
+
+    private void wireBottomSliders() {
+        AudioManager audio=(AudioManager)getSystemService(AUDIO_SERVICE);
+        SeekBar volume=findViewById(R.id.volumeSeek);
+        TextView volumeValue=findViewById(R.id.volumeValue);
+        int max=Math.max(1,audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        int currentVolume=audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+        int volumePercent=Math.round(currentVolume*100f/max);
+        volume.setProgress(volumePercent);
+        volumeValue.setText(String.valueOf(volumePercent));
+        volume.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar bar,int value,boolean fromUser){volumeValue.setText(String.valueOf(value));if(fromUser)audio.setStreamVolume(AudioManager.STREAM_MUSIC,Math.round(max*value/100f),0);}
+            @Override public void onStartTrackingTouch(SeekBar bar){}
+            @Override public void onStopTrackingTouch(SeekBar bar){}
+        });
+        SeekBar brightness=findViewById(R.id.brightnessSeek);
+        TextView brightnessValue=findViewById(R.id.brightnessValue);
+        float saved=getWindow().getAttributes().screenBrightness;
+        int brightnessPercent=saved<0?70:Math.round(saved*100f);
+        brightness.setProgress(brightnessPercent);
+        brightnessValue.setText(String.valueOf(brightnessPercent));
+        brightness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar bar,int value,boolean fromUser){brightnessValue.setText(String.valueOf(value));if(fromUser){WindowManager.LayoutParams lp=getWindow().getAttributes();lp.screenBrightness=Math.max(.01f,value/100f);getWindow().setAttributes(lp);}}
+            @Override public void onStartTrackingTouch(SeekBar bar){}
+            @Override public void onStopTrackingTouch(SeekBar bar){}
         });
     }
 
