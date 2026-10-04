@@ -119,7 +119,7 @@ public final class ScreenTourTest {
         startScreen(TrashActivity.class);capture("23-video-trash",By.desc("Video Trash Screen"),true);startScreen(BookmarkActivity.class);capture("26-video-bookmarks",By.desc("Video Bookmarks Screen"),true);startScreen(PlaybackLabActivity.class);capture("25-playback-lab",By.desc("Playback Lab Screen"),true);
         startScreen(BackupActivity.class);
         capture("21-backup-restore",By.desc("Backup Restore Screen"),true);
-        restartHome("home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);device.pressBack();clickResource("transformButton");capture("27-video-transform",By.text("Reset flip and rotation"),true);
+        restartHome("home advanced");clickResource("moreButton");click(By.text("Tools & storage"),"tools menu");click(By.text("Advanced playback"),"advanced playback");capture("22-advanced-playback",By.text("Reset pinch zoom"),true);click(By.text("Flip & rotate video or image"),"flip and rotate");capture("27-video-transform",By.text("Reset flip and rotation"),true);
         restartHome("home repeat");openAdvanced();click(By.text("Repeat mode"),"repeat mode");capture("28-repeat-mode",By.text("Repeat one video"),true);
         restartHome("home orientation");openAdvanced();click(By.text("Screen orientation"),"screen orientation");capture("29-screen-orientation",By.text("Reverse landscape"),true);
         restartHome("home seek step");openAdvanced();click(By.text("Choose seek step"),"seek step");capture("30-seek-step",By.text("60 seconds"),true);
@@ -197,7 +197,8 @@ public final class ScreenTourTest {
         waitFor(By.desc("Play"), "custom play control");
         waitFor(By.desc("Forward 10 seconds"), "custom forward control");
         waitFor(By.text("Ratio"), "visible ratio label");
-        waitFor(By.text("Flip / Rotate"), "visible flip and rotate label");
+        waitFor(By.text("Flip"), "visible flip label");
+        waitFor(By.text("Rotate"), "visible rotate label");
         settle();
         assertTrue("Screenshot failed: 01-home", takeScreenshot(new File(output, "01-home.png")));
     }
@@ -241,8 +242,7 @@ public final class ScreenTourTest {
         waitFor(By.desc("131 Red Player Home Ready"),"image home");
         waitFor(By.text("demo-image.png"),"image title");
         waitFor(By.desc("Image viewer"),"image viewer");
-        clickResource("transformButton");
-        click(By.text("Rotate 90°"),"rotate image");
+        clickResource("rotateButton");
         homeScenario.onActivity(activity -> {
             View image=activity.findViewById(R.id.imageViewer);
             assertTrue("Image viewer is not visible",image.isShown());
