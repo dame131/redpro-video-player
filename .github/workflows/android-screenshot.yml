@@ -65,6 +65,13 @@ jobs:
             app/build/outputs/androidTest-results/
             proof/
           if-no-files-found: error
+      - name: Upload phone screenshots separately
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 131-red-player-phone-screens
+          path: proof/screenshots/*.png
+          if-no-files-found: warn
       - name: Fail an unsuccessful visual test
         if: steps.visual_test.outcome == 'failure'
         run: exit 1
